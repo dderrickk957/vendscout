@@ -259,14 +259,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'DM Sans'
     <div class="shandle"></div>
     <div style="margin-top:14px">
       <div class="stitle">⚙️ Settings</div>
-      <p class="ssub">API keys are saved only on this device and never shared.</p>
+      <p class="ssub">Your API keys are saved only on this device and never shared.</p>
       <div class="sfield">
-        <div class="sflbl">Anthropic API Key</div>
-        <input class="sfinput" id="sakey" type="password" placeholder="sk-ant-...">
-        <div class="kstat" id="akstat"></div>
-        <p class="sfhint">Powers AI pitch generation. Get at console.anthropic.com → API Keys. ~$3–8/month.</p>
+        <div class="sflbl">Google API Key — Required</div>
+        <input class="sfinput" id="sgkey" type="password" placeholder="AIza...">
+        <div class="kstat" id="gkstat"></div>
+        <p class="sfhint">Powers live search, location enrichment, review counts and ratings. Get at console.cloud.google.com → Enable Places API (New) → Credentials → API Key.</p>
       </div>
-      <button class="ssave" onclick="saveSettings()">Save Keys</button>
+      <button class="ssave" onclick="saveSettings()">Save & Apply</button>
       <button class="scancel" onclick="closeSettings()">Cancel</button>
     </div>
   </div>
@@ -275,6 +275,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'DM Sans'
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 let AKEY=localStorage.getItem('vs_akey')||'';
+let GKEY=localStorage.getItem('vs_gkey')||'';
 let filter=null,locs=[],detailId=null,ulat=37.5485,ulng=-121.9886,map,ml;
 const TK={manufacturer:{mm:[4.5,4.5,4,3.5,3.5,4],vm:[4.5,4,3.5,4,4,3.5]},hospital:{mm:[5,4.5,4.5,3.5,4.5,3],vm:[3.5,4,4.5,3,4.5,3]},storage:{mm:[4,4,3.5,3.5,3.5,3.5],vm:[4.5,3.5,3.5,4,3.5,3.5]},gym:{mm:[4,3.5,4.5,3,3,3.5],vm:[3.5,3.5,4,3.5,3.5,3.5]},university:{mm:[2.5,3,3.5,3,2.5,3.5],vm:[4.5,4,3.5,4.5,3.5,3.5]},medical_clinic:{mm:[3,3,3.5,3,3.5,3],vm:[4,4,4,3.5,3.5,3]},corporate_office:{mm:[4,4,4,3.5,3.5,3.5],vm:[4,3.5,3.5,3.5,3.5,3.5]},hotel:{mm:[2.5,3,3,2.5,3,3.5],vm:[3.5,3.5,3.5,3.5,3,3.5]},apartment_complex:{mm:[3,3.5,3,3,2.5,3],vm:[2.5,2.5,3,3,2.5,3]},default:{mm:[3,3,3,3,3,3],vm:[3,3,3,3,3,3]}};
 const MW=[.25,.22,.2,.15,.12,.06],VW=[.3,.2,.18,.15,.12,.05];
@@ -391,16 +392,23 @@ async function openDetail(id){
   genPitch(l);
 }
 function closeDetail(){document.getElementById('dpanel').classList.remove('open');detailId=null}
-const FALLBACKS={manufacturer:"Hi, I work with manufacturing facilities to provide healthy food access for shift workers — protein bars, fresh drinks, real food available 24/7. There's no cost to you and I handle all restocking. Would your HR or Facilities Manager have 10 minutes to chat?",hospital:"Hi, hospital cafeterias typically close in the evening. I place smart healthy food stations for night shift medical staff — available 24/7, no cost, I handle everything. Would your Facilities Director be open to a quick call?",storage:"Hi, I help distribution and warehouse facilities provide healthy food access for their team — smart vending with real food, available around the clock, no cost to you. Would your Operations Manager have a few minutes?",gym:"Hi, I place smart healthy snack and drink stations in fitness facilities — protein bars, electrolytes, clean-ingredient options your members are already looking for. No cost, I manage everything. Can we chat?",default:"Hi, I'm a local healthy vending operator and I'd love to explore placing a smart machine at your location — no cost to you, healthy products, I handle everything. Do you have 10 minutes this week?"};
-async function genPitch(l){
+const PITCHES={
+  manufacturer:`Hi, I work with manufacturing and warehouse facilities to provide healthy food access for shift workers — protein bars, fresh drinks, and real food available 24/7. There's no cost to you and I handle all restocking and maintenance. Would your HR or Facilities Manager have 10 minutes to chat this week?`,
+  general_hospital:`Hi, I specialize in placing healthy food stations for medical staff working overnight shifts when the cafeteria is closed. It's a 24/7 solution at no cost to the facility — I handle everything from installation to restocking. Would your Facilities or Food Services Director be open to a quick conversation?`,
+  storage:`Hi, I help distribution centers and warehouses provide healthy food access for their teams — smart vending with real food options, available around the clock, no cost to you. I saw your facility and think it'd be a great fit. Would your Operations Manager have a few minutes this week?`,
+  gym:`Hi, I place smart healthy snack and drink stations in fitness facilities — protein bars, electrolytes, and clean-ingredient options that your members are already looking for after a workout. No cost to you, I manage everything. Would the owner or manager have time for a quick chat?`,
+  university:`Hi, I work with colleges to provide healthy grab-and-go food options for students in areas where the cafeteria doesn't reach — especially evening hours. No cost to the school, I handle all logistics. Would your Campus Facilities team be open to a conversation?`,
+  medical_clinic:`Hi, I noticed your clinic has extended hours and high patient traffic. I place healthy vending options in waiting areas and staff break rooms — no cost to you, I handle restocking and maintenance. Would your Center Director have 10 minutes this week?`,
+  corporate_office:`Hi, I help office buildings provide a healthy food benefit for their employees — a smart open-door cooler stocked with fresh snacks and drinks, available all day. No cost to the building, and employees love it. Would your Facilities or Office Manager be open to a quick call?`,
+  hotel:`Hi, I provide 24/7 healthy snack and beverage options for hotel guests through smart vending — a step above the typical machine with better products and a better look. No cost to you, I handle everything. Would the General Manager be available for a quick conversation?`,
+  apartment_complex:`Hi, I help apartment communities add a healthy food amenity for residents — a smart cooler in the common area stocked with snacks and drinks, available anytime. No cost to the property, I manage it entirely. Would the Property Manager have a few minutes to chat?`,
+  default:`Hi, I'm a local healthy vending operator and I'd love to explore placing a smart machine at your location — no cost to you, healthy product selection, and I handle all restocking and maintenance. Do you have 10 minutes to talk this week?`
+};
+function genPitch(l){
   const el=document.getElementById('dpit');
-  el.innerHTML='<div class="ploading"><div class="pulse"></div> Generating pitch...</div>';
-  const fb=FALLBACKS[typeKey(l.types)]||FALLBACKS.default;
-  if(!AKEY){el.innerHTML=`"${fb}"`;return}
-  try{
-    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':AKEY,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:180,messages:[{role:'user',content:`Write a short natural cold call opening pitch (2-3 sentences) for placing a healthy vending machine at: ${l.name}, type: ${typeKey(l.types)}. Mention no cost, healthy options, local operator. Conversational. No quotation marks.`}]})});
-    const d=await r.json();el.innerHTML=`"${d.content?.[0]?.text||fb}"`;
-  }catch{el.innerHTML=`"${fb}"`}
+  const key=typeKey(l.types);
+  const pitch=PITCHES[key]||PITCHES.default;
+  el.innerHTML=`"${pitch}"`;
 }
 function setStatus(s){
   if(!detailId)return;const ud=getUD(detailId),ns=ud.status===s?null:s;
@@ -469,85 +477,137 @@ async function doSearch(){
   }catch{showToast('Search failed')}
 }
 
+// ── GOOGLE PLACES ENRICHMENT ──────────────────────────────────────────────
+function googleTypesToOurs(types){
+  if(!types)return['default'];
+  const t=types.join(',');
+  if(t.includes('hospital'))return['general_hospital'];
+  if(t.includes('doctor')||t.includes('medical')||t.includes('physiotherapist')||t.includes('health'))return['medical_clinic'];
+  if(t.includes('gym')||t.includes('fitness'))return['gym'];
+  if(t.includes('university')||t.includes('school')||t.includes('college'))return['university'];
+  if(t.includes('storage')||t.includes('warehouse')||t.includes('moving_company'))return['storage'];
+  if(t.includes('lodging')||t.includes('hotel'))return['hotel'];
+  if(t.includes('real_estate')||t.includes('premise')||t.includes('office')||t.includes('corporate'))return['corporate_office'];
+  if(t.includes('apartment')||t.includes('residential'))return['apartment_complex'];
+  return['default'];
+}
+
+async function enrichWithGoogle(name, address, lat, lng){
+  if(!GKEY)return null;
+  try{
+    const query=`${name} ${address}`;
+    const res=await fetch('https://places.googleapis.com/v1/places:searchText',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'X-Goog-FieldMask':'places.displayName,places.rating,places.userRatingCount,places.formattedAddress,places.nationalPhoneNumber,places.types,places.regularOpeningHours,places.location',
+        'X-Goog-Api-Key':GKEY
+      },
+      body:JSON.stringify({textQuery:query,maxResultCount:1,locationBias:{circle:{center:{latitude:lat,longitude:lng},radius:500}}})
+    });
+    const data=await res.json();
+    const place=data.places?.[0];
+    if(!place)return null;
+    return{
+      name:place.displayName?.text||name,
+      address:place.formattedAddress||address,
+      lat:place.location?.latitude||lat,
+      lng:place.location?.longitude||lng,
+      rating:place.rating||3.5,
+      user_ratings_total:place.userRatingCount||0,
+      phone:place.nationalPhoneNumber||null,
+      types:googleTypesToOurs(place.types),
+      hours:place.regularOpeningHours?.weekdayDescriptions||null
+    };
+  }catch{return null}
+}
+
 async function searchByBounds(bb){
+  if(!GKEY){showToast('Add Google API key in ⚙️ settings to search');return}
   let added=0;
   const seen=new Set(locs.map(l=>l.name.toLowerCase()));
-  const bbStr=`${bb.s},${bb.w},${bb.n},${bb.e}`;
   const center={lat:(bb.s+bb.n)/2,lng:(bb.w+bb.e)/2};
 
-  // Strategy 1: Nominatim searches scoped to bounding box viewbox
+  // Photon finds location candidates within bounding box
   const searches=[
-    {q:'warehouse',types:['storage']},
-    {q:'distribution center',types:['storage']},
-    {q:'manufacturing plant',types:['manufacturer']},
-    {q:'factory',types:['manufacturer']},
+    {q:'warehouse distribution center',types:['storage']},
+    {q:'manufacturing factory',types:['manufacturer']},
     {q:'hospital medical center',types:['general_hospital']},
     {q:'urgent care clinic',types:['medical_clinic']},
     {q:'gym fitness center',types:['gym']},
-    {q:'college university',types:['university']},
-    {q:'office park business park',types:['corporate_office']},
+    {q:'college university campus',types:['university']},
+    {q:'office park corporate',types:['corporate_office']},
     {q:'hotel',types:['hotel']},
     {q:'apartment complex',types:['apartment_complex']}
   ];
 
+  const candidates=[];
   for(const s of searches){
     try{
-      // viewbox constrains results to visible map area; bounded=1 enforces it strictly
-      const url=`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(s.q)}&viewbox=${bb.w},${bb.n},${bb.e},${bb.s}&bounded=1&limit=8&addressdetails=1`;
-      const r=await fetch(url,{headers:{'Accept-Language':'en'}});
+      const r=await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(s.q)}&lat=${center.lat}&lon=${center.lng}&limit=6&lang=en&bbox=${bb.w},${bb.s},${bb.e},${bb.n}`);
       const data=await r.json();
-      data.forEach(el=>{
-        const elat=parseFloat(el.lat),elng=parseFloat(el.lon);
-        if(!elat||!elng||!el.display_name)return;
-        if(!inBounds(elat,elng,bb))return; // double-check it's in view
-        const name=el.display_name.split(',')[0].trim();
-        if(seen.has(name.toLowerCase()))return;
-        const id=`nom-${el.place_id}`;
-        if(locs.find(l=>l.id===id))return;
-        seen.add(name.toLowerCase());
-        const addr=el.address?[el.address.house_number,el.address.road,el.address.city||el.address.town||el.address.county].filter(Boolean).join(' '):el.display_name.split(',').slice(0,3).join(',');
-        const nl={id,name,address:addr,lat:elat,lng:elng,types:s.types,rating:3.5,user_ratings_total:0,phone:null,demand_signal:null};
-        const p=procLocs([nl]);if(p.length){locs.push(...p);added++}
+      (data.features||[]).forEach(f=>{
+        const p=f.properties,coords=f.geometry.coordinates;
+        if(!p.name||!coords)return;
+        const elng=coords[0],elat=coords[1];
+        if(!inBounds(elat,elng,bb))return;
+        if(seen.has(p.name.toLowerCase()))return;
+        seen.add(p.name.toLowerCase());
+        const addr=[p.housenumber,p.street,p.city||p.county].filter(Boolean).join(' ');
+        candidates.push({name:p.name,address:addr||'Address not listed',lat:elat,lng:elng,fallbackTypes:s.types});
       });
     }catch{}
-    await new Promise(res=>setTimeout(res,100));
+    await new Promise(res=>setTimeout(res,80));
   }
 
-  // Strategy 2: Overpass using exact bounding box — only returns what's visible
+  // Also search Google Places directly for the visible area
   try{
-    const q=`[out:json][timeout:25][bbox:${bb.s},${bb.w},${bb.n},${bb.e}];(
-      node["name"]["amenity"~"hospital|clinic|gym|college|university|hotel"];
-      node["name"]["office"];
-      node["name"]["building"~"industrial|warehouse|office|hospital"];
-      way["name"]["building"~"industrial|warehouse|office|hospital"];
-      way["name"]["amenity"~"hospital|gym|college|university"];
-    );out center 60;`;
-    const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(q)});
-    const d=await r.json();
-    (d.elements||[]).forEach(el=>{
-      const elat=el.lat||el.center?.lat,elng=el.lon||el.center?.lon;
-      if(!elat||!elng||!el.tags?.name)return;
-      if(!inBounds(elat,elng,bb))return; // ensure it's in visible area
-      const name=el.tags.name;
-      if(seen.has(name.toLowerCase()))return;
-      const id=`osm-${el.id}`;if(locs.find(l=>l.id===id))return;
-      seen.add(name.toLowerCase());
-      const t=el.tags;
-      let types=['default'];
-      if(t.amenity==='hospital'||t.amenity==='clinic')types=['hospital'];
-      else if(t.amenity==='gym'||t.leisure==='fitness_centre')types=['gym'];
-      else if(t.amenity==='college'||t.amenity==='university')types=['university'];
-      else if(t.office)types=['corporate_office'];
-      else if(t.building==='warehouse'||t.building==='industrial')types=['storage'];
-      else if(t.building==='hospital')types=['hospital'];
-      const addr=t['addr:street']?`${t['addr:housenumber']||''} ${t['addr:street']}, ${t['addr:city']||''}`.trim():'';
-      const nl={id,name,address:addr||'Address not listed',lat:elat,lng:elng,types,rating:3.5,user_ratings_total:0,phone:t.phone||null,demand_signal:null};
-      const p=procLocs([nl]);if(p.length){locs.push(...p);added++}
-    });
+    const googleTerms=['warehouse','manufacturing plant','hospital','urgent care','gym','college','office park','hotel','apartment complex'];
+    for(const term of googleTerms){
+      const res=await fetch('https://places.googleapis.com/v1/places:searchText',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-Goog-FieldMask':'places.displayName,places.rating,places.userRatingCount,places.formattedAddress,places.nationalPhoneNumber,places.types,places.location','X-Goog-Api-Key':GKEY},
+        body:JSON.stringify({textQuery:term,maxResultCount:5,locationRestriction:{rectangle:{low:{latitude:bb.s,longitude:bb.w},high:{latitude:bb.n,longitude:bb.e}}}})
+      });
+      const data=await res.json();
+      (data.places||[]).forEach(place=>{
+        const name=place.displayName?.text;
+        if(!name||seen.has(name.toLowerCase()))return;
+        const elat=place.location?.latitude,elng=place.location?.longitude;
+        if(!elat||!elng||!inBounds(elat,elng,bb))return;
+        seen.add(name.toLowerCase());
+        const types=googleTypesToOurs(place.types);
+        const nl={
+          id:`gpl-${name.replace(/\s+/g,'-').toLowerCase()}-${elat.toFixed(4)}`,
+          name,
+          address:place.formattedAddress||'Address not listed',
+          lat:elat,lng:elng,
+          types,
+          rating:place.rating||3.5,
+          user_ratings_total:place.userRatingCount||0,
+          phone:place.nationalPhoneNumber||null,
+          demand_signal:null
+        };
+        const p=procLocs([nl]);if(p.length){locs.push(...p);added++}
+      });
+      await new Promise(res=>setTimeout(res,100));
+    }
   }catch{}
 
+  // Enrich Photon candidates with real Google data
+  showToast(`Enriching ${candidates.length} locations with Google data...`);
+  for(const c of candidates){
+    if(locs.find(l=>l.name.toLowerCase()===c.name.toLowerCase()))continue;
+    const enriched=await enrichWithGoogle(c.name,c.address,c.lat,c.lng);
+    const final=enriched||{...c,rating:3.5,user_ratings_total:0,types:c.fallbackTypes};
+    const id=`photon-${c.name.replace(/\s+/g,'-').toLowerCase()}-${c.lat.toFixed(4)}`;
+    if(locs.find(l=>l.id===id))continue;
+    const nl={id,...final,demand_signal:null};
+    const p=procLocs([nl]);if(p.length){locs.push(...p);added++}
+    await new Promise(res=>setTimeout(res,80));
+  }
+
   renderCards();updateMarkers();
-  // pan map to show all new markers
   if(added>0){
     const newLocs=locs.filter(l=>inBounds(l.lat,l.lng,bb)&&!SEED.find(s=>s.id===l.id));
     if(newLocs.length>0){
@@ -555,7 +615,7 @@ async function searchByBounds(bb){
       try{map.fitBounds(group.getBounds().pad(0.1))}catch{}
     }
   }
-  showToast(added>0?`Found ${added} new locations in view`:'No new locations in this area');
+  showToast(added>0?`Found ${added} locations with real data`:'No new locations in this area');
 }
 async function locateMe(){
   if(!navigator.geolocation){showToast('Location not available');return}
@@ -568,13 +628,20 @@ async function locateMe(){
   },()=>showToast('Location access denied'));
 }
 function openSettings(){
-  const a=localStorage.getItem('vs_akey')||'';
-  document.getElementById('sakey').value=a;
-  document.getElementById('akstat').innerHTML=a?`<div class="kdot set"></div><span style="color:var(--green)">Key saved — AI pitches active</span>`:`<div class="kdot unset"></div><span style="color:var(--text3)">Not set — fallback pitches used</span>`;
+  const g=localStorage.getItem('vs_gkey')||'';
+  document.getElementById('sgkey').value=g;
+  document.getElementById('gkstat').innerHTML=g
+    ?`<div class="kdot set"></div><span style="color:var(--green)">Key saved — live search active</span>`
+    :`<div class="kdot unset"></div><span style="color:var(--red)">Not set — search won't work without this</span>`;
   document.getElementById('spanel').classList.add('open');
 }
 function closeSettings(){document.getElementById('spanel').classList.remove('open')}
-function saveSettings(){const a=document.getElementById('sakey').value.trim();if(a){localStorage.setItem('vs_akey',a);AKEY=a}closeSettings();showToast('Settings saved ✓')}
+function saveSettings(){
+  const g=document.getElementById('sgkey').value.trim();
+  if(g){localStorage.setItem('vs_gkey',g);GKEY=g}
+  closeSettings();
+  showToast(g?'Google key saved ✓':'Settings saved');
+}
 let tt;
 function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2400)}
 document.getElementById('dpanel').addEventListener('click',function(e){if(e.target===this)closeDetail()});
