@@ -4,1157 +4,387 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>VendScout</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:wght@400;600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
-  /* ── RESET & BASE ─────────────────────────────────── */
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  :root {
-    --bg: #0a0a0f;
-    --surface: #13131a;
-    --surface2: #1c1c27;
-    --surface3: #252535;
-    --border: rgba(255,255,255,0.08);
-    --border2: rgba(255,255,255,0.14);
-    --text: #f0eff8;
-    --text2: #9896b0;
-    --text3: #5a5870;
-    --gold: #f5c842;
-    --gold-dim: rgba(245,200,66,0.15);
-    --green: #2dce89;
-    --green-dim: rgba(45,206,137,0.15);
-    --blue: #4d9fff;
-    --blue-dim: rgba(77,159,255,0.15);
-    --teal: #1bc5a4;
-    --amber: #ff9f43;
-    --red: #ff6b6b;
-    --radius: 16px;
-    --radius-sm: 10px;
-    --safe-bottom: env(safe-area-inset-bottom, 20px);
-  }
-  html, body { height: 100%; overflow: hidden; background: var(--bg); font-family: 'Syne', sans-serif; color: var(--text); }
- 
-  /* ── MAP CONTAINER ────────────────────────────────── */
-  #map { position: fixed; inset: 0; z-index: 0; }
-  #map-placeholder {
-    position: fixed; inset: 0; z-index: 0;
-    background: radial-gradient(ellipse at 30% 40%, #1a1a2e 0%, #0a0a0f 70%);
-    display: flex; align-items: center; justify-content: center;
-  }
-  .map-grid {
-    position: absolute; inset: 0; opacity: 0.08;
-    background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
-    background-size: 40px 40px;
-  }
- 
-  /* ── TOP BAR ──────────────────────────────────────── */
-  #topbar {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-    padding: 12px 16px 10px;
-    padding-top: calc(12px + env(safe-area-inset-top, 0px));
-    background: linear-gradient(to bottom, rgba(10,10,15,0.98) 0%, rgba(10,10,15,0.85) 100%);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border-bottom: 1px solid var(--border);
-  }
-  .topbar-row1 { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
-  .logo { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
-  .logo span { color: var(--gold); }
-  .locate-btn {
-    width: 38px; height: 38px; border-radius: 50%;
-    background: var(--surface2); border: 1px solid var(--border2);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; font-size: 18px; transition: all 0.2s;
-  }
-  .locate-btn:active { transform: scale(0.92); background: var(--surface3); }
-  .settings-btn {
-    width: 38px; height: 38px; border-radius: 50%;
-    background: var(--surface2); border: 1px solid var(--border2);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; font-size: 16px; transition: all 0.2s;
-  }
-  .settings-btn:active { transform: scale(0.92); background: var(--surface3); }
- 
-  /* ── SETTINGS PANEL ───────────────────────────────── */
-  #settings-panel {
-    position: fixed; inset: 0; z-index: 300;
-    background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    display: none; align-items: flex-end;
-  }
-  #settings-panel.open { display: flex; }
-  .settings-sheet {
-    width: 100%; background: var(--surface);
-    border-radius: var(--radius) var(--radius) 0 0;
-    border-top: 1px solid var(--border2);
-    padding: 16px 20px;
-    padding-bottom: calc(20px + var(--safe-bottom));
-    animation: slideUp 0.3s cubic-bezier(0.32,0.72,0,1);
-  }
-  .settings-title { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
-  .settings-sub { font-size: 12px; color: var(--text3); margin-bottom: 20px; line-height: 1.5; }
-  .settings-field { margin-bottom: 16px; }
-  .settings-field-label { font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text3); margin-bottom: 6px; }
-  .settings-field-input {
-    width: 100%; height: 46px; background: var(--surface2);
-    border: 1px solid var(--border2); border-radius: var(--radius-sm);
-    color: var(--text); font-family: 'DM Mono', monospace; font-size: 13px;
-    padding: 0 14px; outline: none; transition: border-color 0.2s;
-  }
-  .settings-field-input:focus { border-color: var(--gold); }
-  .settings-hint { font-size: 11px; color: var(--text3); margin-top: 5px; line-height: 1.5; }
-  .settings-save-btn {
-    width: 100%; height: 50px; background: var(--gold); color: #000;
-    border: none; border-radius: var(--radius-sm);
-    font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 800;
-    cursor: pointer; transition: all 0.2s; margin-top: 4px;
-  }
-  .settings-save-btn:active { transform: scale(0.98); opacity: 0.9; }
-  .settings-cancel-btn {
-    width: 100%; height: 44px; background: transparent; color: var(--text3);
-    border: none; font-family: 'Syne', sans-serif; font-size: 14px;
-    cursor: pointer; margin-top: 8px;
-  }
-  .key-status { display: flex; align-items: center; gap: 6px; font-size: 11px; margin-top: 5px; }
-  .key-dot { width: 7px; height: 7px; border-radius: 50%; }
-  .key-dot.set { background: var(--green); }
-  .key-dot.unset { background: var(--text3); }
- 
-  /* search row */
-  .search-row { display: flex; gap: 8px; }
-  .search-wrap { flex: 1; position: relative; }
-  .search-wrap input {
-    width: 100%; height: 42px; background: var(--surface2);
-    border: 1px solid var(--border2); border-radius: var(--radius-sm);
-    color: var(--text); font-family: 'Syne', sans-serif; font-size: 14px;
-    padding: 0 14px 0 38px; outline: none;
-    transition: border-color 0.2s;
-  }
-  .search-wrap input:focus { border-color: var(--gold); }
-  .search-wrap input::placeholder { color: var(--text3); }
-  .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 15px; pointer-events: none; }
-  .search-btn {
-    height: 42px; padding: 0 16px; border-radius: var(--radius-sm);
-    background: var(--gold); color: #000; font-family: 'Syne', sans-serif;
-    font-size: 13px; font-weight: 700; border: none; cursor: pointer;
-    white-space: nowrap; transition: all 0.15s;
-  }
-  .search-btn:active { transform: scale(0.95); opacity: 0.9; }
- 
-  /* filter row */
-  .filter-row { display: flex; gap: 8px; margin-top: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
-  .filter-row::-webkit-scrollbar { display: none; }
-  .filter-chip {
-    height: 30px; padding: 0 12px; border-radius: 20px; flex-shrink: 0;
-    font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
-    border: 1px solid var(--border2); background: var(--surface2);
-    color: var(--text2); cursor: pointer; transition: all 0.2s;
-    display: flex; align-items: center; gap: 5px;
-  }
-  .filter-chip.active-gold { background: var(--gold-dim); border-color: var(--gold); color: var(--gold); }
-  .filter-chip.active-green { background: var(--green-dim); border-color: var(--green); color: var(--green); }
-  .filter-chip.active-blue { background: var(--blue-dim); border-color: var(--blue); color: var(--blue); }
-  .filter-chip:active { transform: scale(0.96); }
- 
-  /* ── LOCATION CARDS LIST ──────────────────────────── */
-  #cards-panel {
-    position: fixed; bottom: 0; left: 0; right: 0; z-index: 90;
-    padding-bottom: var(--safe-bottom);
-  }
-  .cards-scroll { display: flex; gap: 10px; overflow-x: auto; padding: 10px 16px 14px; scrollbar-width: none; }
-  .cards-scroll::-webkit-scrollbar { display: none; }
- 
-  /* location card */
-  .loc-card {
-    flex-shrink: 0; width: 260px; background: rgba(19,19,26,0.96);
-    border: 1px solid var(--border2); border-radius: var(--radius);
-    padding: 12px 14px; cursor: pointer; transition: all 0.2s;
-    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-  }
-  .loc-card:active { transform: scale(0.97); }
-  .loc-card.gold { border-color: rgba(245,200,66,0.4); }
-  .loc-card.green { border-color: rgba(45,206,137,0.3); }
-  .loc-card.blue { border-color: rgba(77,159,255,0.3); }
- 
-  .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
-  .card-name { font-size: 13px; font-weight: 700; line-height: 1.3; flex: 1; }
-  .card-badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }
-  .badge-gold { background: var(--gold-dim); color: var(--gold); border: 1px solid rgba(245,200,66,0.3); }
-  .badge-mm { background: var(--green-dim); color: var(--green); border: 1px solid rgba(45,206,137,0.3); }
-  .badge-vm { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(77,159,255,0.3); }
-  .badge-mod { background: rgba(255,159,67,0.15); color: var(--amber); border: 1px solid rgba(255,159,67,0.3); }
- 
-  .card-addr { font-size: 11px; color: var(--text3); margin-bottom: 8px; font-family: 'DM Mono', monospace; }
-  .score-row { display: flex; gap: 6px; }
-  .score-pill { display: flex; align-items: center; gap: 4px; font-size: 10px; font-family: 'DM Mono', monospace; padding: 3px 8px; border-radius: 6px; }
-  .score-pill.mm { background: var(--green-dim); color: var(--green); }
-  .score-pill.vm { background: var(--blue-dim); color: var(--blue); }
-  .card-status { margin-top: 8px; font-size: 10px; font-weight: 600; }
-  .status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; }
- 
-  /* ── DETAIL PANEL ─────────────────────────────────── */
-  #detail-panel {
-    position: fixed; inset: 0; z-index: 200;
-    background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    display: none; align-items: flex-end;
-  }
-  #detail-panel.open { display: flex; }
-  .detail-sheet {
-    width: 100%; max-height: 90vh; background: var(--surface);
-    border-radius: var(--radius) var(--radius) 0 0;
-    border-top: 1px solid var(--border2);
-    overflow-y: auto; -webkit-overflow-scrolling: touch;
-    animation: slideUp 0.3s cubic-bezier(0.32,0.72,0,1);
-  }
-  @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-  .sheet-handle { width: 36px; height: 4px; background: var(--surface3); border-radius: 2px; margin: 12px auto 0; }
-  .sheet-body { padding: 16px 20px; padding-bottom: calc(20px + var(--safe-bottom)); }
- 
-  .detail-header { margin-bottom: 16px; }
-  .detail-name { font-size: 20px; font-weight: 800; line-height: 1.2; margin-bottom: 4px; }
-  .detail-addr { font-size: 12px; color: var(--text2); font-family: 'DM Mono', monospace; }
-  .detail-close {
-    position: absolute; top: 16px; right: 16px;
-    width: 32px; height: 32px; border-radius: 50%;
-    background: var(--surface2); border: 1px solid var(--border);
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; font-size: 16px; color: var(--text2);
-  }
- 
-  .scores-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
-  .score-card { background: var(--surface2); border-radius: var(--radius-sm); padding: 12px; border: 1px solid var(--border); }
-  .score-card-label { font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px; }
-  .score-card-label.mm { color: var(--green); }
-  .score-card-label.vm { color: var(--blue); }
-  .score-num { font-size: 32px; font-weight: 800; font-family: 'DM Mono', monospace; line-height: 1; }
-  .score-num.mm { color: var(--green); }
-  .score-num.vm { color: var(--blue); }
-  .score-grade { font-size: 11px; color: var(--text2); margin-top: 2px; }
- 
-  .section-label { font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text3); margin-bottom: 10px; }
- 
-  .contact-box { background: var(--surface2); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 16px; border: 1px solid var(--border); }
-  .contact-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
-  .contact-row:last-child { border-bottom: none; }
-  .contact-key { font-size: 11px; color: var(--text3); }
-  .contact-val { font-size: 12px; font-weight: 600; font-family: 'DM Mono', monospace; }
-  .contact-val a { color: var(--gold); text-decoration: none; }
- 
-  .pitch-box {
-    background: linear-gradient(135deg, rgba(245,200,66,0.08) 0%, rgba(13,13,20,0) 60%);
-    border: 1px solid rgba(245,200,66,0.2); border-radius: var(--radius-sm);
-    padding: 14px; margin-bottom: 16px;
-  }
-  .pitch-text { font-size: 13px; line-height: 1.7; color: var(--text2); }
-  .pitch-loading { display: flex; align-items: center; gap: 8px; color: var(--text3); font-size: 12px; }
-  .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); animation: pulse 1.2s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
- 
-  /* status buttons */
-  .status-btns { display: flex; gap: 8px; margin-bottom: 14px; }
-  .status-btn {
-    flex: 1; height: 40px; border-radius: var(--radius-sm);
-    border: 1px solid var(--border2); background: var(--surface2);
-    color: var(--text2); font-family: 'Syne', sans-serif; font-size: 11px;
-    font-weight: 700; cursor: pointer; transition: all 0.2s;
-    display: flex; align-items: center; justify-content: center; gap: 4px;
-  }
-  .status-btn:active { transform: scale(0.96); }
-  .status-btn.active-visited { background: var(--green-dim); border-color: var(--green); color: var(--green); }
-  .status-btn.active-contacted { background: var(--blue-dim); border-color: var(--blue); color: var(--blue); }
-  .status-btn.active-pass { background: rgba(255,107,107,0.15); border-color: var(--red); color: var(--red); }
-  .status-btn.active-placed { background: var(--gold-dim); border-color: var(--gold); color: var(--gold); }
- 
-  .notes-area {
-    width: 100%; background: var(--surface2); border: 1px solid var(--border2);
-    border-radius: var(--radius-sm); color: var(--text); padding: 12px;
-    font-family: 'Syne', sans-serif; font-size: 13px; line-height: 1.6;
-    resize: none; outline: none; min-height: 100px;
-    transition: border-color 0.2s;
-  }
-  .notes-area:focus { border-color: var(--gold); }
-  .notes-area::placeholder { color: var(--text3); }
-  .save-note-btn {
-    width: 100%; height: 44px; margin-top: 8px; border-radius: var(--radius-sm);
-    background: var(--surface3); border: 1px solid var(--border2);
-    color: var(--text2); font-family: 'Syne', sans-serif; font-size: 13px;
-    font-weight: 700; cursor: pointer; transition: all 0.2s;
-  }
-  .save-note-btn:active { transform: scale(0.98); background: var(--gold-dim); border-color: var(--gold); color: var(--gold); }
- 
-  .action-btns { display: flex; gap: 8px; margin-top: 16px; }
-  .action-btn {
-    flex: 1; height: 46px; border-radius: var(--radius-sm);
-    font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700;
-    cursor: pointer; transition: all 0.2s; border: none;
-    display: flex; align-items: center; justify-content: center; gap: 6px;
-  }
-  .action-btn:active { transform: scale(0.97); }
-  .action-call { background: var(--green); color: #000; }
-  .action-nav { background: var(--surface2); color: var(--text); border: 1px solid var(--border2); }
- 
-  /* ── LOADING OVERLAY ──────────────────────────────── */
-  #loading {
-    position: fixed; inset: 0; z-index: 300; background: var(--bg);
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
-  }
-  .loading-logo { font-size: 36px; font-weight: 800; }
-  .loading-logo span { color: var(--gold); }
-  .loading-sub { font-size: 13px; color: var(--text3); }
-  .loading-bar { width: 120px; height: 2px; background: var(--surface2); border-radius: 1px; overflow: hidden; }
-  .loading-bar-fill { height: 100%; background: var(--gold); border-radius: 1px; animation: load 1.8s ease-in-out infinite; }
-  @keyframes load { 0%{width:0;margin-left:0} 50%{width:100%;margin-left:0} 100%{width:0;margin-left:100%} }
- 
-  /* ── SETUP SCREEN ─────────────────────────────────── */
-  #setup-screen {
-    position: fixed; inset: 0; z-index: 400; background: var(--bg);
-    overflow-y: auto; padding: 40px 24px;
-    padding-top: calc(40px + env(safe-area-inset-top, 0px));
-  }
-  .setup-logo { font-size: 32px; font-weight: 800; margin-bottom: 8px; }
-  .setup-logo span { color: var(--gold); }
-  .setup-sub { font-size: 14px; color: var(--text2); line-height: 1.6; margin-bottom: 32px; }
-  .setup-section { margin-bottom: 24px; }
-  .setup-label { font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text3); margin-bottom: 8px; }
-  .setup-input {
-    width: 100%; height: 48px; background: var(--surface2);
-    border: 1px solid var(--border2); border-radius: var(--radius-sm);
-    color: var(--text); font-family: 'DM Mono', monospace; font-size: 13px;
-    padding: 0 16px; outline: none; transition: border-color 0.2s;
-  }
-  .setup-input:focus { border-color: var(--gold); }
-  .setup-hint { font-size: 11px; color: var(--text3); margin-top: 6px; line-height: 1.5; }
-  .setup-btn {
-    width: 100%; height: 54px; background: var(--gold); color: #000;
-    border: none; border-radius: var(--radius-sm); font-family: 'Syne', sans-serif;
-    font-size: 16px; font-weight: 800; cursor: pointer; transition: all 0.2s;
-    margin-top: 8px;
-  }
-  .setup-btn:active { transform: scale(0.98); opacity: 0.9; }
-  .setup-divider { display: flex; align-items: center; gap: 12px; margin: 20px 0; }
-  .setup-divider-line { flex: 1; height: 1px; background: var(--border); }
-  .setup-divider span { font-size: 11px; color: var(--text3); }
-  .setup-note { background: var(--surface2); border-radius: var(--radius-sm); padding: 14px; border-left: 2px solid var(--gold); }
-  .setup-note p { font-size: 12px; color: var(--text2); line-height: 1.7; }
- 
-  /* ── TOAST ────────────────────────────────────────── */
-  #toast {
-    position: fixed; bottom: calc(120px + var(--safe-bottom)); left: 50%; transform: translateX(-50%) translateY(20px);
-    background: var(--surface3); border: 1px solid var(--border2);
-    border-radius: 24px; padding: 10px 20px; font-size: 13px; font-weight: 600;
-    z-index: 500; opacity: 0; transition: all 0.3s; pointer-events: none; white-space: nowrap;
-  }
-  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
- 
-  /* ── RESULTS COUNT ────────────────────────────────── */
-  #results-bar {
-    position: fixed; top: 0; left: 0; right: 0; z-index: 95;
-    display: flex; align-items: center; justify-content: center;
-    pointer-events: none;
-  }
-  .results-pill {
-    margin-top: 0; background: var(--surface); border: 1px solid var(--border2);
-    border-radius: 0 0 12px 12px; padding: 4px 16px;
-    font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text3);
-  }
-  .results-pill span { color: var(--gold); font-weight: 700; }
- 
-  /* ── EMPTY STATE ──────────────────────────────────── */
-  .empty-card {
-    flex-shrink: 0; width: 240px; background: rgba(19,19,26,0.96);
-    border: 1px dashed var(--border2); border-radius: var(--radius);
-    padding: 20px; text-align: center; color: var(--text3); font-size: 13px; line-height: 1.6;
-  }
-  .empty-icon { font-size: 28px; margin-bottom: 8px; }
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+--bg:#f5f0e8;--surface:#faf7f2;--surface2:#f0ebe0;--surface3:#e8e0d0;
+--border:rgba(120,100,70,0.12);--border2:rgba(120,100,70,0.22);
+--text:#2c2416;--text2:#6b5d45;--text3:#a89070;
+--gold:#c9961a;--gold-bg:#fdf3d0;--gold-b:rgba(201,150,26,0.3);
+--green:#2a7a4f;--green-bg:#e8f5ee;--green-b:rgba(42,122,79,0.25);
+--blue:#2563a8;--blue-bg:#e8f0fb;--blue-b:rgba(37,99,168,0.25);
+--red:#c0392b;
+--sh:0 1px 3px rgba(60,40,10,0.08),0 1px 2px rgba(60,40,10,0.05);
+--sh2:0 4px 14px rgba(60,40,10,0.1),0 2px 4px rgba(60,40,10,0.06);
+--sh3:0 12px 32px rgba(60,40,10,0.13),0 4px 8px rgba(60,40,10,0.07);
+--r:16px;--rs:10px;
+--sb:env(safe-area-inset-bottom,20px);--st:env(safe-area-inset-top,0px)
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text)}
+#map{position:fixed;inset:0;z-index:0}
+.leaflet-tile-pane{filter:sepia(12%) saturate(88%) brightness(1.03)}
+#topbar{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  padding:10px 14px 10px;
+  padding-top:calc(10px + var(--st));
+  background:rgba(250,247,242,0.95);
+  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border-bottom:1px solid var(--border2);box-shadow:var(--sh)
+}
+.trow1{display:flex;align-items:center;justify-content:space-between;margin-bottom:9px}
+.logo{font-family:'Fraunces',serif;font-size:22px;font-weight:700;color:var(--text)}
+.logo span{color:var(--gold)}
+.tbts{display:flex;gap:7px}
+.ibt{width:36px;height:36px;border-radius:50%;background:var(--surface2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;transition:all .18s;box-shadow:var(--sh)}
+.ibt:active{transform:scale(0.92);background:var(--surface3)}
+.srow{display:flex;gap:8px}
+.swrap{flex:1;position:relative}
+.swrap input{width:100%;height:40px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;padding:0 12px 0 36px;outline:none;transition:border-color .2s;box-shadow:var(--sh)}
+.swrap input:focus{border-color:var(--gold);background:var(--surface)}
+.swrap input::placeholder{color:var(--text3)}
+.sico{position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none}
+.sbtn{height:40px;padding:0 16px;border-radius:var(--rs);background:var(--gold);color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;border:none;cursor:pointer;box-shadow:var(--sh);transition:all .15s;white-space:nowrap}
+.sbtn:active{transform:scale(0.96);opacity:.9}
+.frow{display:flex;gap:7px;margin-top:8px;overflow-x:auto;scrollbar-width:none;padding-bottom:1px}
+.frow::-webkit-scrollbar{display:none}
+.fchip{height:28px;padding:0 11px;border-radius:20px;flex-shrink:0;font-size:11px;font-weight:600;border:1px solid var(--border2);background:var(--surface);color:var(--text2);cursor:pointer;transition:all .18s;display:flex;align-items:center;gap:4px;box-shadow:var(--sh)}
+.fchip:active{transform:scale(0.96)}
+.fchip.ag{background:var(--gold-bg);border-color:var(--gold-b);color:var(--gold)}
+.fchip.amm{background:var(--green-bg);border-color:var(--green-b);color:var(--green)}
+.fchip.avm{background:var(--blue-bg);border-color:var(--blue-b);color:var(--blue)}
+.fchip.av{background:var(--green-bg);border-color:var(--green-b);color:var(--green)}
+#cpanel{position:fixed;bottom:0;left:0;right:0;z-index:90;padding-bottom:var(--sb)}
+.cscroll{display:flex;gap:10px;overflow-x:auto;padding:8px 14px 14px;scrollbar-width:none}
+.cscroll::-webkit-scrollbar{display:none}
+.rpw{display:flex;justify-content:center;margin-bottom:2px}
+.rp{background:rgba(250,247,242,0.93);border:1px solid var(--border2);border-radius:20px;padding:3px 14px;font-size:11px;font-family:'DM Mono',monospace;color:var(--text3);box-shadow:var(--sh)}
+.rp span{color:var(--gold);font-weight:500}
+.lcard{flex-shrink:0;width:252px;background:rgba(250,247,242,0.97);border:1px solid var(--border2);border-radius:var(--r);padding:12px 14px;cursor:pointer;transition:all .18s;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:var(--sh2)}
+.lcard:active{transform:scale(0.97)}
+.lcard.gold{border-color:var(--gold-b);border-left:3px solid var(--gold)}
+.lcard.grn{border-left:3px solid var(--green)}
+.lcard.blu{border-left:3px solid var(--blue)}
+.ctop{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px}
+.cname{font-size:13px;font-weight:600;line-height:1.3;flex:1;color:var(--text);font-family:'Fraunces',serif}
+.cbadge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;white-space:nowrap;flex-shrink:0}
+.bg{background:var(--gold-bg);color:var(--gold);border:1px solid var(--gold-b)}
+.bmm{background:var(--green-bg);color:var(--green);border:1px solid var(--green-b)}
+.bvm{background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-b)}
+.bmod{background:var(--surface2);color:var(--text2);border:1px solid var(--border2)}
+.caddr{font-size:11px;color:var(--text3);margin-bottom:7px;font-family:'DM Mono',monospace;line-height:1.4}
+.scrow{display:flex;gap:5px}
+.sp{display:flex;align-items:center;gap:3px;font-size:10px;font-family:'DM Mono',monospace;padding:2px 7px;border-radius:6px;font-weight:500}
+.sp.mm{background:var(--green-bg);color:var(--green)}
+.sp.vm{background:var(--blue-bg);color:var(--blue)}
+.dsig{font-size:10px;color:var(--text3);margin-top:5px;line-height:1.4}
+.cstat{margin-top:6px;display:flex;align-items:center;gap:5px;font-size:10px;font-weight:600}
+.sdot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+#dpanel{position:fixed;inset:0;z-index:200;background:rgba(44,36,22,0.5);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:none;align-items:flex-end}
+#dpanel.open{display:flex}
+.dsheet{width:100%;max-height:92vh;background:var(--surface);border-radius:var(--r) var(--r) 0 0;border-top:1px solid var(--border2);overflow-y:auto;-webkit-overflow-scrolling:touch;box-shadow:var(--sh3);animation:sup .28s cubic-bezier(.32,.72,0,1)}
+@keyframes sup{from{transform:translateY(100%);opacity:0}to{transform:translateY(0);opacity:1}}
+.shandle{width:36px;height:4px;background:var(--surface3);border-radius:2px;margin:10px auto 0}
+.dbody{padding:14px 18px;padding-bottom:calc(18px + var(--sb));position:relative}
+.dheader{margin-bottom:14px;padding-right:36px}
+.dname{font-family:'Fraunces',serif;font-size:20px;font-weight:700;line-height:1.2;margin-bottom:3px;color:var(--text)}
+.daddr{font-size:12px;color:var(--text3);font-family:'DM Mono',monospace}
+.dclose{position:absolute;top:14px;right:16px;width:30px;height:30px;border-radius:50%;background:var(--surface2);border:1px solid var(--border2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;color:var(--text2)}
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.scrd{background:var(--surface2);border-radius:var(--rs);padding:12px;border:1px solid var(--border)}
+.slbl{font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:5px}
+.slbl.mm{color:var(--green)}.slbl.vm{color:var(--blue)}
+.snum{font-size:30px;font-weight:700;font-family:'Fraunces',serif;line-height:1}
+.snum.mm{color:var(--green)}.snum.vm{color:var(--blue)}
+.sgrade{font-size:11px;color:var(--text3);margin-top:2px}
+.slabel{font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:8px}
+.cbox{background:var(--surface2);border-radius:var(--rs);padding:10px 12px;margin-bottom:14px;border:1px solid var(--border)}
+.crow{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)}
+.crow:last-child{border-bottom:none}
+.ckey{font-size:11px;color:var(--text3)}
+.cval{font-size:12px;font-weight:600}
+.cval a{color:var(--gold);text-decoration:none}
+.dbox{background:#fdf8ed;border:1px solid var(--gold-b);border-radius:var(--rs);padding:10px 12px;margin-bottom:14px}
+.dbox p{font-size:12px;color:var(--text2);line-height:1.6}
+.pbox{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:12px;margin-bottom:14px}
+.ptxt{font-size:13px;line-height:1.7;color:var(--text2);font-style:italic}
+.ploading{display:flex;align-items:center;gap:8px;color:var(--text3);font-size:12px}
+.pulse{width:7px;height:7px;border-radius:50%;background:var(--gold);animation:pls 1.2s infinite}
+@keyframes pls{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}
+.stbtns{display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap}
+.stbtn{flex:1;min-width:70px;height:38px;border-radius:var(--rs);border:1px solid var(--border2);background:var(--surface2);color:var(--text2);font-family:'DM Sans',sans-serif;font-size:11px;font-weight:600;cursor:pointer;transition:all .18s;display:flex;align-items:center;justify-content:center;gap:3px}
+.stbtn:active{transform:scale(.96)}
+.stbtn.av{background:var(--green-bg);border-color:var(--green-b);color:var(--green)}
+.stbtn.ac{background:var(--blue-bg);border-color:var(--blue-b);color:var(--blue)}
+.stbtn.ap{background:#fdecea;border-color:rgba(192,57,43,.25);color:var(--red)}
+.stbtn.apl{background:var(--gold-bg);border-color:var(--gold-b);color:var(--gold)}
+.narea{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);color:var(--text);padding:10px 12px;font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.6;resize:none;outline:none;min-height:90px;transition:border-color .2s}
+.narea:focus{border-color:var(--gold);background:var(--surface)}
+.narea::placeholder{color:var(--text3)}
+.snbtn{width:100%;height:40px;margin-top:7px;border-radius:var(--rs);background:var(--surface3);border:1px solid var(--border2);color:var(--text2);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .18s}
+.snbtn:active{transform:scale(.98);background:var(--gold-bg);border-color:var(--gold-b);color:var(--gold)}
+.abtns{display:flex;gap:8px;margin-top:14px}
+.abtn{flex:1;height:44px;border-radius:var(--rs);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .18s;border:none;display:flex;align-items:center;justify-content:center;gap:5px;box-shadow:var(--sh)}
+.abtn:active{transform:scale(.97)}
+.acall{background:var(--green);color:#fff}
+.anav{background:var(--surface2);color:var(--text);border:1px solid var(--border2)}
+#spanel{position:fixed;inset:0;z-index:300;background:rgba(44,36,22,0.5);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);display:none;align-items:flex-end}
+#spanel.open{display:flex}
+.ssheet{width:100%;background:var(--surface);border-radius:var(--r) var(--r) 0 0;border-top:1px solid var(--border2);padding:14px 18px;padding-bottom:calc(18px + var(--sb));box-shadow:var(--sh3);animation:sup .28s cubic-bezier(.32,.72,0,1)}
+.stitle{font-family:'Fraunces',serif;font-size:20px;font-weight:700;margin-bottom:4px;color:var(--text)}
+.ssub{font-size:12px;color:var(--text3);margin-bottom:18px;line-height:1.5}
+.sfield{margin-bottom:14px}
+.sflbl{font-size:10px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);margin-bottom:6px}
+.sfinput{width:100%;height:44px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--rs);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;padding:0 13px;outline:none;transition:border-color .2s}
+.sfinput:focus{border-color:var(--gold);background:var(--surface)}
+.sfhint{font-size:11px;color:var(--text3);margin-top:5px;line-height:1.5}
+.kstat{display:flex;align-items:center;gap:5px;font-size:11px;margin-top:5px}
+.kdot{width:7px;height:7px;border-radius:50%}
+.kdot.set{background:var(--green)}.kdot.unset{background:var(--text3)}
+.ssave{width:100%;height:48px;background:var(--gold);color:#fff;border:none;border-radius:var(--rs);font-family:'DM Sans',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all .18s;margin-top:4px;box-shadow:var(--sh)}
+.ssave:active{transform:scale(.98);opacity:.9}
+.scancel{width:100%;height:42px;background:transparent;color:var(--text3);border:none;font-family:'DM Sans',sans-serif;font-size:14px;cursor:pointer;margin-top:6px}
+#toast{position:fixed;bottom:calc(130px + var(--sb));left:50%;transform:translateX(-50%) translateY(16px);background:var(--text);color:var(--bg);border-radius:24px;padding:9px 18px;font-size:13px;font-weight:600;z-index:500;opacity:0;transition:all .25s;pointer-events:none;white-space:nowrap;box-shadow:var(--sh2)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.ecard{flex-shrink:0;width:220px;background:rgba(250,247,242,.97);border:1px dashed var(--border2);border-radius:var(--r);padding:18px;text-align:center;color:var(--text3);font-size:13px;line-height:1.6;box-shadow:var(--sh)}
+.eico{font-size:26px;margin-bottom:7px}
 </style>
 </head>
 <body>
- 
-<!-- SETUP SCREEN -->
-<div id="setup-screen">
-  <div class="setup-logo">Vend<span>Scout</span></div>
-  <p class="setup-sub">Your AI-powered vending location intelligence tool. Enter your API keys to get started — these are stored only on your device.</p>
- 
-  <div class="setup-section">
-    <div class="setup-label">Google Places API Key</div>
-    <input class="setup-input" id="gkey" type="password" placeholder="AIza...">
-    <p class="setup-hint">Get yours free at console.cloud.google.com → Enable "Places API (New)" → Create credentials → API Key. Google gives you $200 free credit/month.</p>
-  </div>
- 
-  <div class="setup-section">
-    <div class="setup-label">Anthropic API Key</div>
-    <input class="setup-input" id="akey" type="password" placeholder="sk-ant-...">
-    <p class="setup-hint">Get yours at console.anthropic.com → API Keys → Create Key. Typical usage for this app: $3–8/month.</p>
-  </div>
- 
-  <div class="setup-divider"><div class="setup-divider-line"></div><span>or</span><div class="setup-divider-line"></div></div>
- 
-  <div class="setup-note">
-    <p>📌 <strong style="color:var(--text)">Demo mode:</strong> Leave keys blank to explore the app with your pre-loaded Fremont locations. Real-time search and AI scoring require API keys.</p>
-  </div>
- 
-  <button class="setup-btn" style="margin-top:24px" onclick="initApp()">Launch VendScout →</button>
-</div>
- 
-<!-- LOADING -->
-<div id="loading" style="display:none">
-  <div class="loading-logo">Vend<span>Scout</span></div>
-  <div class="loading-sub">Loading your locations...</div>
-  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
-</div>
- 
-<!-- MAP -->
-<div id="map-placeholder">
-  <div class="map-grid"></div>
-</div>
 <div id="map"></div>
- 
-<!-- TOP BAR -->
-<div id="topbar" style="display:none">
-  <div class="topbar-row1">
+<div id="topbar">
+  <div class="trow1">
     <div class="logo">Vend<span>Scout</span></div>
-    <div style="display:flex;gap:8px">
-      <div class="locate-btn" onclick="locateMe()" title="Find my location">📍</div>
-      <div class="settings-btn" onclick="openSettings()" title="API Settings">⚙️</div>
+    <div class="tbts">
+      <div class="ibt" onclick="locateMe()">📍</div>
+      <div class="ibt" onclick="openSettings()">⚙️</div>
     </div>
   </div>
-  <div class="search-row">
-    <div class="search-wrap">
-      <span class="search-icon">🔍</span>
-      <input id="search-input" type="search" placeholder="Search area (e.g. Hayward CA)..." autocomplete="off">
+  <div class="srow">
+    <div class="swrap">
+      <span class="sico">🔍</span>
+      <input id="sinput" type="search" placeholder="Search area (e.g. Hayward CA)..." autocomplete="off">
     </div>
-    <button class="search-btn" onclick="doSearch()">Search</button>
+    <button class="sbtn" onclick="doSearch()">Search</button>
   </div>
-  <div class="filter-row">
-    <div class="filter-chip" id="chip-gold" onclick="toggleFilter('gold')">⭐ Gold Only</div>
-    <div class="filter-chip" id="chip-mm" onclick="toggleFilter('mm')">🟢 Mini-Market</div>
-    <div class="filter-chip" id="chip-vm" onclick="toggleFilter('vm')">🔵 Standard VM</div>
-    <div class="filter-chip" id="chip-visited" onclick="toggleFilter('visited')">✅ Visited</div>
-    <div class="filter-chip" id="chip-unvisited" onclick="toggleFilter('unvisited')">⭕ Not Yet Visited</div>
+  <div class="frow">
+    <div class="fchip" id="cg" onclick="toggleFilter('gold')">⭐ Gold Only</div>
+    <div class="fchip" id="cmm" onclick="toggleFilter('mm')">🟢 Mini-Market</div>
+    <div class="fchip" id="cvm" onclick="toggleFilter('vm')">🔵 Standard VM</div>
+    <div class="fchip" id="cv" onclick="toggleFilter('visited')">✅ Visited</div>
+    <div class="fchip" id="cu" onclick="toggleFilter('unvisited')">⭕ Not Visited</div>
   </div>
 </div>
- 
-<!-- RESULTS BAR -->
-<div id="results-bar" style="display:none">
-  <div class="results-pill" id="results-text">Loading...</div>
+<div id="cpanel">
+  <div class="rpw"><div class="rp" id="rtxt">Loading...</div></div>
+  <div class="cscroll" id="ccon"></div>
 </div>
- 
-<!-- CARDS PANEL -->
-<div id="cards-panel" style="display:none">
-  <div class="cards-scroll" id="cards-container"></div>
-</div>
- 
-<!-- DETAIL PANEL -->
-<div id="detail-panel">
-  <div class="detail-sheet" id="detail-sheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-body" style="position:relative">
-      <div class="detail-close" onclick="closeDetail()">✕</div>
-      <div class="detail-header">
-        <div class="detail-name" id="d-name"></div>
-        <div class="detail-addr" id="d-addr"></div>
+<div id="dpanel">
+  <div class="dsheet">
+    <div class="shandle"></div>
+    <div class="dbody">
+      <div class="dclose" onclick="closeDetail()">✕</div>
+      <div class="dheader">
+        <div class="dname" id="dn"></div>
+        <div class="daddr" id="da"></div>
       </div>
- 
-      <div class="scores-grid">
-        <div class="score-card">
-          <div class="score-card-label mm">Mini-Market</div>
-          <div class="score-num mm" id="d-mm-score">—</div>
-          <div class="score-grade" id="d-mm-grade"></div>
-        </div>
-        <div class="score-card">
-          <div class="score-card-label vm">Standard VM</div>
-          <div class="score-num vm" id="d-vm-score">—</div>
-          <div class="score-grade" id="d-vm-grade"></div>
-        </div>
+      <div class="sgrid">
+        <div class="scrd"><div class="slbl mm">Mini-Market</div><div class="snum mm" id="dmm">—</div><div class="sgrade" id="dmmg"></div></div>
+        <div class="scrd"><div class="slbl vm">Standard VM</div><div class="snum vm" id="dvm">—</div><div class="sgrade" id="dvmg"></div></div>
       </div>
- 
-      <div class="section-label">Contact Info</div>
-      <div class="contact-box" id="d-contact"></div>
- 
-      <div class="section-label" style="margin-top:16px">Opening Pitch</div>
-      <div class="pitch-box">
-        <div id="d-pitch" class="pitch-text">
-          <div class="pitch-loading"><div class="pulse"></div> Generating tailored pitch...</div>
-        </div>
+      <div class="slabel">Contact Info</div>
+      <div class="cbox" id="dcon"></div>
+      <div id="ddemw" style="display:none;margin-bottom:14px">
+        <div class="slabel">Demand Signal</div>
+        <div class="dbox"><p id="ddem"></p></div>
       </div>
- 
-      <div class="section-label">Field Status</div>
-      <div class="status-btns">
-        <button class="status-btn" id="btn-visited" onclick="setStatus('visited')">👁 Visited</button>
-        <button class="status-btn" id="btn-contacted" onclick="setStatus('contacted')">📞 Called</button>
-        <button class="status-btn" id="btn-placed" onclick="setStatus('placed')">✅ Placed</button>
-        <button class="status-btn" id="btn-pass" onclick="setStatus('pass')">✗ Pass</button>
+      <div class="slabel" style="margin-top:2px">Opening Pitch</div>
+      <div class="pbox"><div id="dpit" class="ptxt"><div class="ploading"><div class="pulse"></div> Generating pitch...</div></div></div>
+      <div class="slabel">Field Status</div>
+      <div class="stbtns">
+        <button class="stbtn" id="bv" onclick="setStatus('visited')">👁 Visited</button>
+        <button class="stbtn" id="bc" onclick="setStatus('contacted')">📞 Called</button>
+        <button class="stbtn" id="bp" onclick="setStatus('placed')">✅ Placed</button>
+        <button class="stbtn" id="bx" onclick="setStatus('pass')">✗ Pass</button>
       </div>
- 
-      <div class="section-label">Field Notes</div>
-      <textarea class="notes-area" id="d-notes" placeholder="e.g. Spoke to Mark in Facilities — interested, wants proposal by Friday. Break room on 2nd floor, badge access confirmed..."></textarea>
-      <button class="save-note-btn" onclick="saveNotes()">Save Notes</button>
- 
-      <div class="action-btns">
-        <button class="action-btn action-call" id="d-call-btn" onclick="callLocation()">📞 Call</button>
-        <button class="action-btn action-nav" onclick="navigateToLocation()">🗺 Navigate</button>
+      <div class="slabel">Field Notes</div>
+      <textarea class="narea" id="dnotes" placeholder="e.g. Spoke to Mark in Facilities — interested, wants proposal Friday. Break room confirmed, badge access..."></textarea>
+      <button class="snbtn" onclick="saveNotes()">Save Notes</button>
+      <div class="abtns">
+        <button class="abtn acall" id="dcall" onclick="callLoc()">📞 Call</button>
+        <button class="abtn anav" onclick="navLoc()">🗺 Navigate</button>
       </div>
     </div>
   </div>
 </div>
- 
-<!-- SETTINGS PANEL -->
-<div id="settings-panel">
-  <div class="settings-sheet">
-    <div class="sheet-handle"></div>
-    <div style="margin-top:16px">
-      <div class="settings-title">⚙️ API Settings</div>
-      <p class="settings-sub">Your keys are saved only on this device. They never leave your phone or computer.</p>
- 
-      <div class="settings-field">
-        <div class="settings-field-label">Google Places & Maps API Key</div>
-        <input class="settings-field-input" id="s-gkey" type="password" placeholder="AIza...">
-        <div class="key-status" id="gkey-status"></div>
-        <p class="settings-hint">Enables live map and real-time location search. Get free at console.cloud.google.com → Enable Places API + Maps JavaScript API → Credentials → API Key.</p>
+<div id="spanel">
+  <div class="ssheet">
+    <div class="shandle"></div>
+    <div style="margin-top:14px">
+      <div class="stitle">⚙️ Settings</div>
+      <p class="ssub">API keys are saved only on this device and never shared.</p>
+      <div class="sfield">
+        <div class="sflbl">Anthropic API Key</div>
+        <input class="sfinput" id="sakey" type="password" placeholder="sk-ant-...">
+        <div class="kstat" id="akstat"></div>
+        <p class="sfhint">Powers AI pitch generation. Get at console.anthropic.com → API Keys. ~$3–8/month.</p>
       </div>
- 
-      <div class="settings-field">
-        <div class="settings-field-label">Anthropic API Key</div>
-        <input class="settings-field-input" id="s-akey" type="password" placeholder="sk-ant-...">
-        <div class="key-status" id="akey-status"></div>
-        <p class="settings-hint">Powers AI pitch generation for each location. Get at console.anthropic.com → API Keys. Typical cost: $3–8/month.</p>
-      </div>
- 
-      <button class="settings-save-btn" onclick="saveSettings()">Save & Apply Keys</button>
-      <button class="settings-cancel-btn" onclick="closeSettings()">Cancel</button>
+      <button class="ssave" onclick="saveSettings()">Save Keys</button>
+      <button class="scancel" onclick="closeSettings()">Cancel</button>
     </div>
   </div>
 </div>
- 
-<!-- TOAST -->
 <div id="toast"></div>
- 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-// ── CONFIGURATION ──────────────────────────────────────────────────────────
-let GOOGLE_KEY = '';
-let ANTHROPIC_KEY = '';
-let currentFilter = null;
-let allLocations = [];
-let currentDetailId = null;
-let userLat = 37.5485, userLng = -121.9886; // default Fremont
-let map = null;
-let markers = {};
- 
-// ── SCORING ENGINE ─────────────────────────────────────────────────────────
-const LOCATION_TYPES = {
-  manufacturer: { mm: [4.5, 4.5, 4.0, 3.5, 3.5, 4.0], vm: [4.5, 4.0, 3.5, 4.0, 4.0, 3.5] },
-  hospital: { mm: [5.0, 4.5, 4.5, 3.5, 4.5, 3.0], vm: [3.5, 4.0, 4.5, 3.0, 4.5, 3.0] },
-  storage: { mm: [4.0, 4.0, 3.5, 3.5, 3.5, 3.5], vm: [4.5, 3.5, 3.5, 4.0, 3.5, 3.5] },
-  gym: { mm: [4.0, 3.5, 4.5, 3.0, 3.0, 3.5], vm: [3.5, 3.5, 4.0, 3.5, 3.5, 3.5] },
-  university: { mm: [2.5, 3.0, 3.5, 3.0, 2.5, 3.5], vm: [4.5, 4.0, 3.5, 4.5, 3.5, 3.5] },
-  medical_clinic: { mm: [3.0, 3.0, 3.5, 3.0, 3.5, 3.0], vm: [4.0, 4.0, 4.0, 3.5, 3.5, 3.0] },
-  corporate_office: { mm: [4.0, 4.0, 4.0, 3.5, 3.5, 3.5], vm: [4.0, 3.5, 3.5, 3.5, 3.5, 3.5] },
-  hotel: { mm: [2.5, 3.0, 3.0, 2.5, 3.0, 3.5], vm: [3.5, 3.5, 3.5, 3.5, 3.0, 3.5] },
-  apartment_complex: { mm: [3.0, 3.5, 3.0, 3.0, 2.5, 3.0], vm: [2.5, 2.5, 3.0, 3.0, 2.5, 3.0] },
-  default: { mm: [3.0, 3.0, 3.0, 3.0, 3.0, 3.0], vm: [3.0, 3.0, 3.0, 3.0, 3.0, 3.0] }
-};
-const MM_WEIGHTS = [0.25, 0.22, 0.20, 0.15, 0.12, 0.06];
-const VM_WEIGHTS = [0.30, 0.20, 0.18, 0.15, 0.12, 0.05];
- 
-function getTypeKey(types) {
-  if (!types) return 'default';
-  const t = types.join(',');
-  if (t.includes('manufacturer') || t.includes('industrial')) return 'manufacturer';
-  if (t.includes('hospital') || t.includes('general_hospital')) return 'hospital';
-  if (t.includes('medical_clinic') || t.includes('doctor')) return 'medical_clinic';
-  if (t.includes('storage') || t.includes('warehouse')) return 'storage';
-  if (t.includes('gym') || t.includes('fitness')) return 'gym';
-  if (t.includes('university') || t.includes('school')) return 'university';
-  if (t.includes('corporate_office') || t.includes('office')) return 'corporate_office';
-  if (t.includes('hotel') || t.includes('lodging')) return 'hotel';
-  if (t.includes('apartment')) return 'apartment_complex';
-  return 'default';
+let AKEY=localStorage.getItem('vs_akey')||'';
+let filter=null,locs=[],detailId=null,ulat=37.5485,ulng=-121.9886,map,ml;
+const TK={manufacturer:{mm:[4.5,4.5,4,3.5,3.5,4],vm:[4.5,4,3.5,4,4,3.5]},hospital:{mm:[5,4.5,4.5,3.5,4.5,3],vm:[3.5,4,4.5,3,4.5,3]},storage:{mm:[4,4,3.5,3.5,3.5,3.5],vm:[4.5,3.5,3.5,4,3.5,3.5]},gym:{mm:[4,3.5,4.5,3,3,3.5],vm:[3.5,3.5,4,3.5,3.5,3.5]},university:{mm:[2.5,3,3.5,3,2.5,3.5],vm:[4.5,4,3.5,4.5,3.5,3.5]},medical_clinic:{mm:[3,3,3.5,3,3.5,3],vm:[4,4,4,3.5,3.5,3]},corporate_office:{mm:[4,4,4,3.5,3.5,3.5],vm:[4,3.5,3.5,3.5,3.5,3.5]},hotel:{mm:[2.5,3,3,2.5,3,3.5],vm:[3.5,3.5,3.5,3.5,3,3.5]},apartment_complex:{mm:[3,3.5,3,3,2.5,3],vm:[2.5,2.5,3,3,2.5,3]},default:{mm:[3,3,3,3,3,3],vm:[3,3,3,3,3,3]}};
+const MW=[.25,.22,.2,.15,.12,.06],VW=[.3,.2,.18,.15,.12,.05];
+function typeKey(t){if(!t)return'default';const s=(t||[]).join(',');if(s.includes('manufacturer'))return'manufacturer';if(s.includes('general_hospital')||s.includes('hospital'))return'hospital';if(s.includes('medical_clinic')||s.includes('doctor'))return'medical_clinic';if(s.includes('storage')||s.includes('warehouse'))return'storage';if(s.includes('gym')||s.includes('fitness'))return'gym';if(s.includes('university')||s.includes('school'))return'university';if(s.includes('corporate_office')||s.includes('office'))return'corporate_office';if(s.includes('hotel')||s.includes('lodging'))return'hotel';if(s.includes('apartment'))return'apartment_complex';return'default';}
+function score(loc){const k=typeKey(loc.types),b=TK[k]||TK.default,rv=loc.user_ratings_total||0,rt=loc.rating||3.5,vf=rv>500?1.15:rv>200?1.08:rv>50?1.02:.95;let mm=b.mm.reduce((s,v,i)=>s+v*MW[i],0)*vf,vm=b.vm.reduce((s,v,i)=>s+v*VW[i],0)*vf;if(rt>4.2){mm+=.1;vm+=.1}if(rt<3){mm-=.2;vm-=.1}return{mm:Math.min(5,Math.max(1,+mm.toFixed(1))),vm:Math.min(5,Math.max(1,+vm.toFixed(1)))};}
+function classify(s){const{mm,vm}=s;if(mm<2.5&&vm<2.5)return'pass';if(mm>=4&&vm>=4)return'gold';if(mm>=4)return'mm';if(vm>=4)return'vm';return'mod';}
+function grade(s){return s>=4.5?'Elite ✦':s>=4?'Strong':s>=3?'Moderate':s>=2.5?'Marginal':'Pass';}
+function role(t){const m={manufacturer:'HR Director or Facilities Manager',hospital:'Facilities or Food Services Director',storage:'Operations or Warehouse Manager',gym:'General Manager or Owner',university:'Campus Facilities or Student Services',medical_clinic:'Center Director or Office Manager',corporate_office:'Facilities or Office Manager',hotel:'General Manager',apartment_complex:'Property Manager',default:'Facilities or Operations Manager'};return m[typeKey(t)]||m.default;}
+const SEED=[{id:'s1',name:'Tesla Factory',address:'45500 Fremont Blvd, Fremont, CA',lat:37.4934,lng:-121.9451,types:['manufacturer'],rating:4,user_ratings_total:50,phone:'+1 570-995-1754',demand_signal:'No competitor vending confirmed'},{id:'s2',name:'Home Depot Distribution Center',address:'40745 Encyclopedia Cir, Fremont, CA',lat:37.514,lng:-121.9858,types:['storage'],rating:2.1,user_ratings_total:19,phone:'+1 510-353-9370',demand_signal:'🔴 Review says "NO VENDING MACHINES"'},{id:'s3',name:'Amazon Sort Center OAK5',address:'38811 Cherry St, Newark, CA',lat:37.5205,lng:-122.014,types:['storage'],rating:3.7,user_ratings_total:408,phone:null,demand_signal:'🔴 24/7 workforce, no food in reviews'},{id:'s4',name:'Sprouts Distribution Center',address:'33400 Dowe Ave, Union City, CA',lat:37.595,lng:-122.0424,types:['storage'],rating:2.9,user_ratings_total:32,phone:'+1 510-404-1331',demand_signal:'🔴 Reviews cite NO amenities for workers'},{id:'s5',name:'Washington Hospital',address:'2000 Mowry Ave, Fremont, CA',lat:37.5573,lng:-121.9792,types:['general_hospital'],rating:2.6,user_ratings_total:372,phone:'+1 510-797-1111',demand_signal:'🟡 Cafeteria closes 7pm — night shift underserved'},{id:'s6',name:'Sutter Urgent Care',address:'3200 Kearney St, Fremont, CA',lat:37.5483,lng:-121.9744,types:['medical_clinic'],rating:3.9,user_ratings_total:864,phone:'+1 510-498-2940',demand_signal:'🟡 No vending in 864 reviews'},{id:'s7',name:'Concentra Urgent Care',address:'3161 Walnut Ave, Fremont, CA',lat:37.5515,lng:-121.9805,types:['medical_clinic'],rating:3.8,user_ratings_total:1189,phone:'+1 510-796-1000',demand_signal:'🔴 Open midnight, no vending in any review'},{id:'s8',name:'Fremont Business Park',address:'42840 Christy St, Fremont, CA',lat:37.5088,lng:-121.9758,types:['corporate_office'],rating:4.5,user_ratings_total:10,phone:'+1 408-520-2437',demand_signal:'🟡 Contact: Lee Jatta (Property Manager)'},{id:'s9',name:'Toyota Tsusho',address:'41490 Boyce Rd, Fremont, CA',lat:37.5079,lng:-121.9853,types:['manufacturer'],rating:4.5,user_ratings_total:2,phone:'+1 510-657-7131',demand_signal:'🟡 Toyota-affiliated manufacturing'},{id:'s10',name:'24 Hour Fitness Auto Mall',address:'4500 Auto Mall Pkwy, Fremont, CA',lat:37.5093,lng:-121.9583,types:['gym'],rating:4,user_ratings_total:888,phone:'+1 510-226-6900',demand_signal:'🟡 True 24/7, 888 reviews'},{id:'s11',name:'Elite Performance Gym',address:'37272 Maple St, Fremont, CA',lat:37.558,lng:-122.0088,types:['gym'],rating:4.8,user_ratings_total:256,phone:'+1 510-998-0863',demand_signal:'🟡 Premium boutique, health clientele'},{id:'s12',name:'LFBA Studios Lagree',address:'39370 Civic Center Dr, Fremont, CA',lat:37.5535,lng:-121.9742,types:['gym'],rating:5,user_ratings_total:265,phone:null,demand_signal:'🟡 5-star wellness studio'},{id:'s13',name:'Ohlone College Main',address:'43600 Mission Blvd, Fremont, CA',lat:37.5293,lng:-121.9146,types:['university'],rating:4.1,user_ratings_total:196,phone:'+1 510-659-6000',demand_signal:'🟡 Large community college'},{id:'s14',name:'Ohlone College Newark',address:'39399 Cherry St, Newark, CA',lat:37.5174,lng:-122.0044,types:['university'],rating:4.7,user_ratings_total:52,phone:'+1 510-742-2300',demand_signal:'🟡 Modern STEM campus'},{id:'s15',name:'Chabot College',address:'25555 Hesperian Blvd, Hayward, CA',lat:37.6427,lng:-122.1062,types:['university'],rating:4.3,user_ratings_total:227,phone:'+1 510-723-6600',demand_signal:'🟡 Large Hayward campus'},{id:'s16',name:'Creekside Village Apartments',address:'2999 Sequoia Terrace, Fremont, CA',lat:37.5649,lng:-122.0035,types:['apartment_complex'],rating:4.6,user_ratings_total:364,phone:'+1 844-795-9756',demand_signal:'🟡 Gated, highly-rated community'},{id:'s17',name:'Glenmoor Green Apartments',address:'38850 Farwell Dr, Fremont, CA',lat:37.5348,lng:-122.0018,types:['apartment_complex'],rating:4.7,user_ratings_total:98,phone:'+1 510-574-8374',demand_signal:'🟡 Long-term residents, gated'},{id:'s18',name:'Unitek College',address:'4670 Auto Mall Pkwy, Fremont, CA',lat:37.509,lng:-121.9617,types:['university'],rating:4,user_ratings_total:123,phone:'+1 888-775-1514',demand_signal:'🟡 Healthcare college, long programs'},{id:'s19',name:'Aura Wellness Studio',address:'160 Fremont Hub Courtyard, Fremont, CA',lat:37.5465,lng:-121.9878,types:['gym'],rating:5,user_ratings_total:8,phone:'+1 510-557-4554',demand_signal:'🟡 5-star premium wellness'},{id:'s20',name:'Best Western Garden Court Inn',address:'5400 Mowry Ave, Fremont, CA',lat:37.5324,lng:-121.9999,types:['hotel'],rating:4.2,user_ratings_total:950,phone:'+1 510-792-4300',demand_signal:'🟡 950 reviews, consistent occupancy'}];
+function loadUD(){try{return JSON.parse(localStorage.getItem('vs_data')||'{}')}catch{return{}}}
+function saveUD(d){localStorage.setItem('vs_data',JSON.stringify(d))}
+function getUD(id){return loadUD()[id]||{status:null,notes:''}}
+function setUD(id,u){const d=loadUD();d[id]={...(d[id]||{status:null,notes:''}), ...u};saveUD(d)}
+function procLocs(raw){return raw.map(l=>{const s=score(l),c=classify(s);return{...l,scores:s,classification:c,...getUD(l.id)}}).filter(l=>l.classification!=='pass')}
+function toggleFilter(f){filter=filter===f?null:f;updateChips();renderCards();updateMarkers()}
+function updateChips(){const map={gold:'g',mm:'mm',vm:'vm',visited:'v',unvisited:'u'};['gold','mm','vm','visited','unvisited'].forEach(f=>{const el=document.getElementById('c'+(map[f]||f));if(!el)return;el.className='fchip'+(filter===f?' a'+f.charAt(0):'')});}
+function getFiltered(){return locs.filter(l=>{if(!filter)return true;if(filter==='gold')return l.classification==='gold';if(filter==='mm')return l.scores.mm>=4;if(filter==='vm')return l.scores.vm>=4;if(filter==='visited')return['visited','contacted','placed'].includes(l.status);if(filter==='unvisited')return!l.status;return true})}
+function mcolor(l){if(l.classification==='gold')return'#c9961a';if(l.scores.mm>=4)return'#2a7a4f';if(l.scores.mm>=2.5)return'#5aab7a';if(l.scores.vm>=4)return'#2563a8';return'#7aa8d4'}
+function memo(l){if(l.classification==='gold')return'⭐';if(l.scores.mm>=4)return'🟢';if(l.scores.vm>=4)return'🔵';return'🟡'}
+function initMap(){
+  map=L.map('map',{center:[ulat,ulng],zoom:12,zoomControl:false,attributionControl:false});
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{maxZoom:19}).addTo(map);
+  L.control.zoom({position:'bottomright'}).addTo(map);
+  ml=L.layerGroup().addTo(map);
+  updateMarkers();
 }
- 
-function scoreLocation(loc) {
-  const key = getTypeKey(loc.types);
-  const base = LOCATION_TYPES[key] || LOCATION_TYPES.default;
-  const reviews = loc.user_ratings_total || loc.rating_count || 0;
-  const rating = loc.rating || 3.5;
- 
-  // volume multiplier based on review count
-  const volFactor = reviews > 500 ? 1.15 : reviews > 200 ? 1.08 : reviews > 50 ? 1.02 : 0.95;
- 
-  let mmRaw = base.mm.reduce((s, v, i) => s + v * MM_WEIGHTS[i], 0) * volFactor;
-  let vmRaw = base.vm.reduce((s, v, i) => s + v * VM_WEIGHTS[i], 0) * volFactor;
- 
-  // rating adjustment
-  if (rating > 4.2) { mmRaw += 0.1; vmRaw += 0.1; }
-  if (rating < 3.0) { mmRaw -= 0.2; vmRaw -= 0.1; }
- 
-  const mmScore = Math.min(5.0, Math.max(1.0, +mmRaw.toFixed(1)));
-  const vmScore = Math.min(5.0, Math.max(1.0, +vmRaw.toFixed(1)));
-  return { mm: mmScore, vm: vmScore };
-}
- 
-function classifyLocation(scores) {
-  const isGold = scores.mm >= 4.0 && scores.vm >= 4.0;
-  const mmStrong = scores.mm >= 4.0;
-  const mmMod = scores.mm >= 2.5 && scores.mm < 4.0;
-  const vmStrong = scores.vm >= 4.0;
-  const vmMod = scores.vm >= 2.5 && scores.vm < 4.0;
-  const mmPass = scores.mm < 2.5;
-  const vmPass = scores.vm < 2.5;
-  if (mmPass && vmPass) return 'pass';
-  if (isGold) return 'gold';
-  if (mmStrong && !vmStrong) return 'mm-strong';
-  if (vmStrong && !mmStrong) return 'vm-strong';
-  if (mmMod && vmMod) return 'mod';
-  if (mmMod) return 'mm-mod';
-  if (vmMod) return 'vm-mod';
-  return 'mod';
-}
- 
-function gradeLabel(score) {
-  if (score >= 4.5) return 'Elite ✦';
-  if (score >= 4.0) return 'Strong';
-  if (score >= 3.0) return 'Moderate';
-  if (score >= 2.5) return 'Marginal';
-  return 'Pass';
-}
- 
-function getContactRole(types) {
-  const key = getTypeKey(types);
-  const roles = {
-    manufacturer: 'HR Director or Facilities Manager',
-    hospital: 'Facilities or Food Services Director',
-    storage: 'Operations or Warehouse Manager',
-    gym: 'General Manager or Owner',
-    university: 'Campus Facilities or Student Services',
-    medical_clinic: 'Center Director or Office Manager',
-    corporate_office: 'Facilities or Office Manager',
-    hotel: 'General Manager or Front Desk Supervisor',
-    apartment_complex: 'Property Manager',
-    default: 'Facilities or Operations Manager'
-  };
-  return roles[key] || roles.default;
-}
- 
-// ── SEED DATA (your pre-researched Fremont locations) ─────────────────────
-const SEED_LOCATIONS = [
-  { id:'seed-1', name:'Tesla Motors / Fremont Factory', address:'45500 Fremont Blvd, Fremont, CA', lat:37.4934, lng:-121.9451, types:['manufacturer','corporate_office'], rating:4.0, user_ratings_total:50, phone:'+1 570-995-1754', demand_signal:'🔴 No competitor vending confirmed' },
-  { id:'seed-2', name:'Home Depot Distribution Center', address:'40745 Encyclopedia Cir, Fremont, CA', lat:37.5140, lng:-121.9858, types:['storage','supplier'], rating:2.1, user_ratings_total:19, phone:'+1 510-353-9370', demand_signal:'🔴 Review explicitly says NO VENDING MACHINES' },
-  { id:'seed-3', name:'Amazon Sort Center OAK5', address:'38811 Cherry St, Newark, CA', lat:37.5205, lng:-122.0140, types:['storage'], rating:3.7, user_ratings_total:408, phone:null, demand_signal:'🔴 24/7 captive workforce, no food amenities in reviews' },
-  { id:'seed-4', name:'Sprouts Distribution Center', address:'33400 Dowe Ave, Union City, CA', lat:37.5950, lng:-122.0424, types:['storage'], rating:2.9, user_ratings_total:32, phone:'+1 510-404-1331', demand_signal:'🔴 Multiple reviews cite NO amenities for workers' },
-  { id:'seed-5', name:'Washington Hospital', address:'2000 Mowry Ave, Fremont, CA', lat:37.5573, lng:-121.9792, types:['general_hospital','hospital'], rating:2.6, user_ratings_total:372, phone:'+1 510-797-1111', demand_signal:'🟡 Cafeteria closes 7pm — night shift underserved' },
-  { id:'seed-6', name:'Sutter Urgent Care Fremont', address:'3200 Kearney St, Fremont, CA', lat:37.5483, lng:-121.9744, types:['medical_clinic'], rating:3.9, user_ratings_total:864, phone:'+1 510-498-2940', demand_signal:'🟡 No vending mentioned in 864 reviews' },
-  { id:'seed-7', name:'Concentra Urgent Care', address:'3161 Walnut Ave, Fremont, CA', lat:37.5515, lng:-121.9805, types:['medical_clinic'], rating:3.8, user_ratings_total:1189, phone:'+1 510-796-1000', demand_signal:'🔴 Open until midnight, no vending in any review' },
-  { id:'seed-8', name:'Fremont Business Park', address:'42840 Christy St, Fremont, CA', lat:37.5088, lng:-121.9758, types:['corporate_office','business_center'], rating:4.5, user_ratings_total:10, phone:'+1 408-520-2437', demand_signal:'🟡 Named contact: Lee Jatta (Property Manager)' },
-  { id:'seed-9', name:'Toyota Tsusho', address:'41490 Boyce Rd, Fremont, CA', lat:37.5079, lng:-121.9853, types:['manufacturer'], rating:4.5, user_ratings_total:2, phone:'+1 510-657-7131', demand_signal:'🟡 Toyota-affiliated manufacturing' },
-  { id:'seed-10', name:'24 Hour Fitness Auto Mall', address:'4500 Auto Mall Pkwy, Fremont, CA', lat:37.5093, lng:-121.9583, types:['gym','fitness_center'], rating:4.0, user_ratings_total:888, phone:'+1 510-226-6900', demand_signal:'🟡 True 24/7 operation, 888 reviews' },
-  { id:'seed-11', name:'Elite Performance Gym', address:'37272 Maple St, Fremont, CA', lat:37.5580, lng:-122.0088, types:['gym'], rating:4.8, user_ratings_total:256, phone:'+1 510-998-0863', demand_signal:'🟡 Premium boutique, health-conscious clientele' },
-  { id:'seed-12', name:'LFBA Studios Lagree', address:'39370 Civic Center Dr, Fremont, CA', lat:37.5535, lng:-121.9742, types:['gym','fitness_center'], rating:5.0, user_ratings_total:265, phone:null, demand_signal:'🟡 5-star premium wellness, ideal demographic' },
-  { id:'seed-13', name:'Ohlone College Main', address:'43600 Mission Blvd, Fremont, CA', lat:37.5293, lng:-121.9146, types:['university'], rating:4.1, user_ratings_total:196, phone:'+1 510-659-6000', demand_signal:'🟡 Large community college' },
-  { id:'seed-14', name:'Ohlone College Newark', address:'39399 Cherry St, Newark, CA', lat:37.5174, lng:-122.0044, types:['university'], rating:4.7, user_ratings_total:52, phone:'+1 510-742-2300', demand_signal:'🟡 Modern STEM & healthcare campus' },
-  { id:'seed-15', name:'Chabot College', address:'25555 Hesperian Blvd, Hayward, CA', lat:37.6427, lng:-122.1062, types:['university'], rating:4.3, user_ratings_total:227, phone:'+1 510-723-6600', demand_signal:'🟡 Large Hayward campus' },
-  { id:'seed-16', name:'Creekside Village Apartments', address:'2999 Sequoia Terrace, Fremont, CA', lat:37.5649, lng:-122.0035, types:['apartment_complex'], rating:4.6, user_ratings_total:364, phone:'+1 844-795-9756', demand_signal:'🟡 Gated, high-rated community' },
-  { id:'seed-17', name:'Glenmoor Green Apartments', address:'38850 Farwell Dr, Fremont, CA', lat:37.5348, lng:-122.0018, types:['apartment_complex'], rating:4.7, user_ratings_total:98, phone:'+1 510-574-8374', demand_signal:'🟡 Long-term residents, gated' },
-  { id:'seed-18', name:'Unitek College Fremont', address:'4670 Auto Mall Pkwy, Fremont, CA', lat:37.5090, lng:-121.9617, types:['university','health'], rating:4.0, user_ratings_total:123, phone:'+1 888-775-1514', demand_signal:'🟡 Healthcare-focused college, long programs' },
-  { id:'seed-19', name:'Aura Wellness Studio', address:'160 Fremont Hub Courtyard, Fremont, CA', lat:37.5465, lng:-121.9878, types:['gym'], rating:5.0, user_ratings_total:8, phone:'+1 510-557-4554', demand_signal:'🟡 5-star premium studio, health demographic' },
-  { id:'seed-20', name:'Best Western Plus Garden Court Inn', address:'5400 Mowry Ave, Fremont, CA', lat:37.5324, lng:-121.9999, types:['hotel'], rating:4.2, user_ratings_total:950, phone:'+1 510-792-4300', demand_signal:'🟡 950 reviews, consistent occupancy' }
-];
- 
-// ── APP STATE & STORAGE ────────────────────────────────────────────────────
-function loadUserData() {
-  try { return JSON.parse(localStorage.getItem('vendscout_data') || '{}'); } catch { return {}; }
-}
-function saveUserData(data) {
-  localStorage.setItem('vendscout_data', JSON.stringify(data));
-}
-function getUserDatum(locId) {
-  const data = loadUserData();
-  return data[locId] || { status: null, notes: '' };
-}
-function setUserDatum(locId, updates) {
-  const data = loadUserData();
-  data[locId] = { ...(data[locId] || { status: null, notes: '' }), ...updates };
-  saveUserData(data);
-}
- 
-// ── SCORING & CLASSIFICATION ───────────────────────────────────────────────
-function processLocations(rawLocs) {
-  return rawLocs.map(loc => {
-    const scores = scoreLocation(loc);
-    const classification = classifyLocation(scores);
-    const userData = getUserDatum(loc.id);
-    return { ...loc, scores, classification, ...userData };
-  }).filter(l => l.classification !== 'pass');
-}
- 
-// ── FILTERS ────────────────────────────────────────────────────────────────
-function toggleFilter(f) {
-  currentFilter = currentFilter === f ? null : f;
-  updateFilterChips();
-  renderCards();
-  if (map) updateMapMarkers();
-}
-function updateFilterChips() {
-  ['gold','mm','vm','visited','unvisited'].forEach(f => {
-    const el = document.getElementById('chip-'+f);
-    if (!el) return;
-    el.className = 'filter-chip' + (currentFilter === f ? ' active-'+f : '');
+function updateMarkers(){
+  if(!ml)return;ml.clearLayers();
+  getFiltered().forEach(l=>{
+    const c=mcolor(l),sz=l.classification==='gold'?34:28;
+    const ico=L.divIcon({html:`<div style="width:${sz}px;height:${sz}px;border-radius:50%;background:${c};border:2.5px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.18);display:flex;align-items:center;justify-content:center;font-size:${sz===34?14:11}px">${memo(l)}</div>`,className:'',iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});
+    L.marker([l.lat,l.lng],{icon:ico}).addTo(ml).on('click',()=>openDetail(l.id));
   });
 }
-function getFilteredLocations() {
-  return allLocations.filter(loc => {
-    if (!currentFilter) return true;
-    if (currentFilter === 'gold') return loc.classification === 'gold';
-    if (currentFilter === 'mm') return loc.scores.mm >= 4.0;
-    if (currentFilter === 'vm') return loc.scores.vm >= 4.0;
-    if (currentFilter === 'visited') return loc.status === 'visited' || loc.status === 'contacted' || loc.status === 'placed';
-    if (currentFilter === 'unvisited') return !loc.status;
-    return true;
-  });
-}
- 
-// ── CARD RENDERING ─────────────────────────────────────────────────────────
-function badgeForClass(c) {
-  const map = {
-    gold: ['⭐ Gold — Both Strong', 'badge-gold'],
-    'mm-strong': ['🟢 Mini-Market Strong', 'badge-mm'],
-    'vm-strong': ['🔵 Standard VM Strong', 'badge-vm'],
-    mod: ['🟡 Moderate', 'badge-mod'],
-    'mm-mod': ['🟢 MM Moderate', 'badge-mod'],
-    'vm-mod': ['🔵 VM Moderate', 'badge-mod'],
-  };
-  return map[c] || ['—', 'badge-mod'];
-}
-function statusColor(status) {
-  const map = { visited:'#2dce89', contacted:'#4d9fff', placed:'#f5c842', pass:'#ff6b6b' };
-  return map[status] || 'transparent';
-}
-function statusLabel(status) {
-  const map = { visited:'Visited', contacted:'Called', placed:'Machine Placed', pass:'Passed' };
-  return map[status] || '';
-}
- 
-function renderCards() {
-  const container = document.getElementById('cards-container');
-  const filtered = getFilteredLocations();
-  const total = allLocations.length;
- 
-  // update results bar
-  const filterLabel = currentFilter ? ` (${currentFilter} filter)` : '';
-  document.getElementById('results-text').innerHTML = `Showing <span>${filtered.length}</span> of <span>${total}</span> locations${filterLabel}`;
- 
-  if (filtered.length === 0) {
-    container.innerHTML = '<div class="empty-card"><div class="empty-icon">🔍</div>No locations match this filter. Try a different view or search a new area.</div>';
-    return;
-  }
- 
-  // sort: gold first, then by mm score
-  filtered.sort((a,b) => {
-    if (a.classification==='gold' && b.classification!=='gold') return -1;
-    if (b.classification==='gold' && a.classification!=='gold') return 1;
-    return b.scores.mm - a.scores.mm;
-  });
- 
-  container.innerHTML = filtered.map(loc => {
-    const [badgeText, badgeClass] = badgeForClass(loc.classification);
-    const userData = getUserDatum(loc.id);
-    const statusHtml = userData.status ? `<div class="card-status"><span class="status-dot" style="background:${statusColor(userData.status)}"></span>${statusLabel(userData.status)}</div>` : '';
-    const demandHtml = loc.demand_signal ? `<div style="font-size:10px;color:var(--text3);margin-top:6px;line-height:1.4">${loc.demand_signal}</div>` : '';
-    return `
-    <div class="loc-card ${loc.classification === 'gold' ? 'gold' : loc.scores.mm >= 4 ? 'green' : 'blue'}" onclick="openDetail('${loc.id}')">
-      <div class="card-top">
-        <div class="card-name">${loc.name}</div>
-        <div class="card-badge ${badgeClass}">${badgeText}</div>
-      </div>
-      <div class="card-addr">${loc.address}</div>
-      <div class="score-row">
-        <div class="score-pill mm">🟢 MM ${loc.scores.mm.toFixed(1)}</div>
-        <div class="score-pill vm">🔵 VM ${loc.scores.vm.toFixed(1)}</div>
-      </div>
-      ${demandHtml}
-      ${statusHtml}
-    </div>`;
+function badgeFor(c){const m={gold:['⭐ Gold — Both Strong','bg'],'mm':['🟢 Mini-Market Strong','bmm'],'vm':['🔵 Standard VM Strong','bvm'],mod:['🟡 Moderate','bmod']};return m[c]||['—','bmod']}
+function scol(s){return{visited:'#2a7a4f',contacted:'#2563a8',placed:'#c9961a',pass:'#c0392b'}[s]||'transparent'}
+function slbl(s){return{visited:'Visited',contacted:'Called',placed:'Machine Placed',pass:'Passed'}[s]||''}
+function renderCards(){
+  const con=document.getElementById('ccon'),fil=getFiltered();
+  document.getElementById('rtxt').innerHTML=`Showing <span>${fil.length}</span> of <span>${locs.length}</span> locations`;
+  if(!fil.length){con.innerHTML='<div class="ecard"><div class="eico">🔍</div>No locations match this filter.</div>';return}
+  fil.sort((a,b)=>{if(a.classification==='gold'&&b.classification!=='gold')return-1;if(b.classification==='gold'&&a.classification!=='gold')return 1;return b.scores.mm-a.scores.mm});
+  con.innerHTML=fil.map(l=>{
+    const[bt,bc]=badgeFor(l.classification),ud=getUD(l.id),bc2=l.classification==='gold'?'gold':l.scores.mm>=4?'grn':'blu';
+    const sh=ud.status?`<div class="cstat"><span class="sdot" style="background:${scol(ud.status)}"></span>${slbl(ud.status)}</div>`:'';
+    const dh=l.demand_signal?`<div class="dsig">${l.demand_signal}</div>`:'';
+    return`<div class="lcard ${bc2}" onclick="openDetail('${l.id}')"><div class="ctop"><div class="cname">${l.name}</div><div class="cbadge ${bc}">${bt}</div></div><div class="caddr">${l.address}</div><div class="scrow"><div class="sp mm">🟢 MM ${l.scores.mm.toFixed(1)}</div><div class="sp vm">🔵 VM ${l.scores.vm.toFixed(1)}</div></div>${dh}${sh}</div>`;
   }).join('');
 }
- 
-// ── DETAIL PANEL ───────────────────────────────────────────────────────────
-async function openDetail(id) {
-  const loc = allLocations.find(l => l.id === id);
-  if (!loc) return;
-  currentDetailId = id;
-  const userData = getUserDatum(id);
- 
-  document.getElementById('d-name').textContent = loc.name;
-  document.getElementById('d-addr').textContent = loc.address;
-  document.getElementById('d-mm-score').textContent = loc.scores.mm.toFixed(1);
-  document.getElementById('d-vm-score').textContent = loc.scores.vm.toFixed(1);
-  document.getElementById('d-mm-grade').textContent = gradeLabel(loc.scores.mm);
-  document.getElementById('d-vm-grade').textContent = gradeLabel(loc.scores.vm);
-  document.getElementById('d-notes').value = userData.notes || '';
- 
-  // contact box
-  const contactRole = getContactRole(loc.types);
-  const phoneHtml = loc.phone
-    ? `<div class="contact-row"><span class="contact-key">Phone</span><span class="contact-val"><a href="tel:${loc.phone}">${loc.phone}</a></span></div>`
-    : `<div class="contact-row"><span class="contact-key">Phone</span><span class="contact-val" style="color:var(--text3)">Look up on Google</span></div>`;
-  document.getElementById('d-contact').innerHTML = `
-    <div class="contact-row"><span class="contact-key">Ask for</span><span class="contact-val" style="font-family:'Syne'">${contactRole}</span></div>
-    ${phoneHtml}
-    <div class="contact-row"><span class="contact-key">Type</span><span class="contact-val" style="font-family:'Syne'">${getTypeKey(loc.types).replace(/_/g,' ')}</span></div>
-  `;
- 
-  // call button
-  if (loc.phone) {
-    document.getElementById('d-call-btn').style.opacity = '1';
-    document.getElementById('d-call-btn').disabled = false;
-  } else {
-    document.getElementById('d-call-btn').style.opacity = '0.4';
-    document.getElementById('d-call-btn').disabled = true;
-  }
- 
-  // status buttons
-  ['visited','contacted','placed','pass'].forEach(s => {
-    const btn = document.getElementById('btn-'+s);
-    btn.className = 'status-btn' + (userData.status === s ? ' active-'+s : '');
-  });
- 
-  // show panel
-  document.getElementById('detail-panel').classList.add('open');
- 
-  // generate pitch
-  generatePitch(loc);
+async function openDetail(id){
+  const l=locs.find(x=>x.id===id);if(!l)return;detailId=id;
+  const ud=getUD(id);
+  document.getElementById('dn').textContent=l.name;
+  document.getElementById('da').textContent=l.address;
+  document.getElementById('dmm').textContent=l.scores.mm.toFixed(1);
+  document.getElementById('dvm').textContent=l.scores.vm.toFixed(1);
+  document.getElementById('dmmg').textContent=grade(l.scores.mm);
+  document.getElementById('dvmg').textContent=grade(l.scores.vm);
+  document.getElementById('dnotes').value=ud.notes||'';
+  const r=role(l.types),ph=l.phone?`<div class="crow"><span class="ckey">Phone</span><span class="cval"><a href="tel:${l.phone}">${l.phone}</a></span></div>`:`<div class="crow"><span class="ckey">Phone</span><span class="cval" style="color:var(--text3)">Search on Google</span></div>`;
+  document.getElementById('dcon').innerHTML=`<div class="crow"><span class="ckey">Ask for</span><span class="cval">${r}</span></div>${ph}<div class="crow"><span class="ckey">Type</span><span class="cval">${typeKey(l.types).replace(/_/g,' ')}</span></div>`;
+  const dw=document.getElementById('ddemw');
+  if(l.demand_signal){dw.style.display='block';document.getElementById('ddem').textContent=l.demand_signal}else{dw.style.display='none'}
+  const cb=document.getElementById('dcall');cb.style.opacity=l.phone?'1':'.4';cb.disabled=!l.phone;
+  ['bv','bc','bp','bx'].forEach((b,i)=>{const s=['visited','contacted','placed','pass'][i];document.getElementById(b).className='stbtn'+(ud.status===s?' a'+['v','c','pl','p'][i]:'')});
+  document.getElementById('dpanel').classList.add('open');
+  if(map)map.panTo([l.lat,l.lng]);
+  genPitch(l);
 }
- 
-function closeDetail() {
-  document.getElementById('detail-panel').classList.remove('open');
-  currentDetailId = null;
+function closeDetail(){document.getElementById('dpanel').classList.remove('open');detailId=null}
+const FALLBACKS={manufacturer:"Hi, I work with manufacturing facilities to provide healthy food access for shift workers — protein bars, fresh drinks, real food available 24/7. There's no cost to you and I handle all restocking. Would your HR or Facilities Manager have 10 minutes to chat?",hospital:"Hi, hospital cafeterias typically close in the evening. I place smart healthy food stations for night shift medical staff — available 24/7, no cost, I handle everything. Would your Facilities Director be open to a quick call?",storage:"Hi, I help distribution and warehouse facilities provide healthy food access for their team — smart vending with real food, available around the clock, no cost to you. Would your Operations Manager have a few minutes?",gym:"Hi, I place smart healthy snack and drink stations in fitness facilities — protein bars, electrolytes, clean-ingredient options your members are already looking for. No cost, I manage everything. Can we chat?",default:"Hi, I'm a local healthy vending operator and I'd love to explore placing a smart machine at your location — no cost to you, healthy products, I handle everything. Do you have 10 minutes this week?"};
+async function genPitch(l){
+  const el=document.getElementById('dpit');
+  el.innerHTML='<div class="ploading"><div class="pulse"></div> Generating pitch...</div>';
+  const fb=FALLBACKS[typeKey(l.types)]||FALLBACKS.default;
+  if(!AKEY){el.innerHTML=`"${fb}"`;return}
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':AKEY,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:180,messages:[{role:'user',content:`Write a short natural cold call opening pitch (2-3 sentences) for placing a healthy vending machine at: ${l.name}, type: ${typeKey(l.types)}. Mention no cost, healthy options, local operator. Conversational. No quotation marks.`}]})});
+    const d=await r.json();el.innerHTML=`"${d.content?.[0]?.text||fb}"`;
+  }catch{el.innerHTML=`"${fb}"`}
 }
- 
-async function generatePitch(loc) {
-  const pitchEl = document.getElementById('d-pitch');
-  pitchEl.innerHTML = '<div class="pitch-loading"><div class="pulse"></div> Generating tailored pitch...</div>';
- 
-  if (!ANTHROPIC_KEY) {
-    const pitches = {
-      manufacturer: `"Hi, I'm reaching out about adding a healthy food benefit for your team. I operate modern smart vending machines with fresh, healthy options — protein bars, fresh drinks, real food. There's no cost to you, and I handle everything from installation to restocking. Would you have 10 minutes this week to discuss?"`,
-      hospital: `"Hi, I noticed your cafeteria closes at 7pm. I work with medical facilities to provide 24/7 healthy food access for night shift staff through smart vending — staffed by local operators, not a national chain. No cost to the facility. Would your Facilities Director have time for a quick call?"`,
-      gym: `"Hi, I'm reaching out about adding a healthy snack and drink station for your members. I operate smart open-cooler machines with protein bars, electrolytes, and clean-ingredient snacks — exactly what your clients look for after a workout. No cost, I handle everything. Interested in a quick chat?"`,
-      default: `"Hi, I'm a local healthy vending operator and I'd love to explore placing a smart vending machine at your location — no cost to you, healthy products, and I handle all restocking and maintenance. Do you have 10 minutes to talk this week?"`
-    };
-    const key = getTypeKey(loc.types);
-    pitchEl.innerHTML = pitches[key] || pitches.default;
-    return;
-  }
- 
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 200,
-        messages: [{
-          role: 'user',
-          content: `Write a short, natural, conversational cold call opening pitch (2-3 sentences max) for placing a healthy vending machine / smart mini-market at: ${loc.name}, type: ${getTypeKey(loc.types)}. The pitch should mention no cost to them, healthy options, and local operator. Be specific to the location type. No quotation marks needed, just the pitch text.`
-        }]
-      })
-    });
-    const data = await response.json();
-    const text = data.content?.[0]?.text || 'Generate pitch failed — check your API key.';
-    pitchEl.innerHTML = `"${text}"`;
-  } catch (e) {
-    pitchEl.innerHTML = 'Could not generate pitch. Check your Anthropic API key in settings.';
-  }
+function setStatus(s){
+  if(!detailId)return;const ud=getUD(detailId),ns=ud.status===s?null:s;
+  setUD(detailId,{status:ns});
+  const map={bv:'visited',bc:'contacted',bp:'placed',bx:'pass'};
+  const cls=['av','ac','apl','ap'];
+  ['bv','bc','bp','bx'].forEach((b,i)=>{document.getElementById(b).className='stbtn'+(ns===Object.values(map)[i]?' '+cls[i]:'')});
+  const l=locs.find(x=>x.id===detailId);if(l)l.status=ns;
+  renderCards();showToast(ns?`Status: ${slbl(ns)}`:'Status cleared');
 }
- 
-function setStatus(status) {
-  if (!currentDetailId) return;
-  const userData = getUserDatum(currentDetailId);
-  const newStatus = userData.status === status ? null : status;
-  setUserDatum(currentDetailId, { status: newStatus });
- 
-  // update buttons
-  ['visited','contacted','placed','pass'].forEach(s => {
-    document.getElementById('btn-'+s).className = 'status-btn' + (newStatus === s ? ' active-'+s : '');
-  });
- 
-  // update in allLocations
-  const loc = allLocations.find(l => l.id === currentDetailId);
-  if (loc) loc.status = newStatus;
- 
-  renderCards();
-  showToast(newStatus ? `Status: ${statusLabel(newStatus)}` : 'Status cleared');
-}
- 
-function saveNotes() {
-  if (!currentDetailId) return;
-  const notes = document.getElementById('d-notes').value;
-  setUserDatum(currentDetailId, { notes });
-  showToast('Notes saved ✓');
-}
- 
-function callLocation() {
-  const loc = allLocations.find(l => l.id === currentDetailId);
-  if (loc?.phone) window.location.href = `tel:${loc.phone}`;
-}
- 
-function navigateToLocation() {
-  const loc = allLocations.find(l => l.id === currentDetailId);
-  if (!loc) return;
-  const url = `https://maps.apple.com/?daddr=${encodeURIComponent(loc.address)}`;
-  window.open(url, '_blank');
-}
- 
-// ── GOOGLE PLACES SEARCH ───────────────────────────────────────────────────
-async function doSearch() {
-  const query = document.getElementById('search-input').value.trim();
-  if (!query && !GOOGLE_KEY) { showToast('Enter a location to search'); return; }
-  if (!GOOGLE_KEY) { showToast('Google API key needed for live search'); return; }
- 
+function saveNotes(){if(!detailId)return;setUD(detailId,{notes:document.getElementById('dnotes').value});showToast('Notes saved ✓')}
+function callLoc(){const l=locs.find(x=>x.id===detailId);if(l?.phone)window.location.href=`tel:${l.phone}`}
+function navLoc(){const l=locs.find(x=>x.id===detailId);if(l)window.open(`https://maps.apple.com/?daddr=${encodeURIComponent(l.address)}`,'_blank')}
+async function doSearch(){
+  const q=document.getElementById('sinput').value.trim();if(!q){showToast('Enter a location');return}
   showToast('Searching...');
- 
-  try {
-    // geocode the query to get lat/lng
-    const geoRes = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${GOOGLE_KEY}`);
-    const geoData = await geoRes.json();
-    if (geoData.results?.[0]) {
-      userLat = geoData.results[0].geometry.location.lat;
-      userLng = geoData.results[0].geometry.location.lng;
-    }
-    await searchNearby(userLat, userLng);
-  } catch (e) {
-    showToast('Search failed — check API key');
-  }
+  try{
+    const g=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`);
+    const gd=await g.json();
+    if(gd[0]){ulat=parseFloat(gd[0].lat);ulng=parseFloat(gd[0].lon);map.setView([ulat,ulng],13);await nearbySearch(ulat,ulng)}
+    else showToast('Location not found');
+  }catch{showToast('Search failed')}
 }
- 
-async function locateMe() {
-  if (!navigator.geolocation) { showToast('Location not available'); return; }
-  showToast('Finding your location...');
-  navigator.geolocation.getCurrentPosition(async pos => {
-    userLat = pos.coords.latitude;
-    userLng = pos.coords.longitude;
-    if (GOOGLE_KEY) await searchNearby(userLat, userLng);
-    else { renderCards(); showToast('Location updated'); }
-    if (map) map.setCenter({ lat: userLat, lng: userLng });
-  }, () => showToast('Location access denied'));
-}
- 
-const PLACE_TYPES = ['factory','warehouse','hospital','gym','university','office building','manufacturing plant','medical clinic','apartment complex','distribution center'];
- 
-async function searchNearby(lat, lng) {
-  if (!GOOGLE_KEY) return;
-  const radius = 8000;
-  const newLocs = [];
- 
-  for (const type of PLACE_TYPES.slice(0, 5)) {
-    try {
-      // Use the text search endpoint
-      const res = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(type)}&location=${lat},${lng}&radius=${radius}&key=${GOOGLE_KEY}`);
-      const data = await res.json();
-      if (data.results) {
-        data.results.slice(0, 4).forEach(p => {
-          if (!allLocations.find(l => l.id === p.place_id)) {
-            newLocs.push({
-              id: p.place_id,
-              name: p.name,
-              address: p.formatted_address,
-              lat: p.geometry.location.lat,
-              lng: p.geometry.location.lng,
-              types: p.types || [],
-              rating: p.rating || 3.5,
-              user_ratings_total: p.user_ratings_total || 0,
-              phone: null,
-              demand_signal: null
-            });
-          }
-        });
-      }
-    } catch {}
-  }
- 
-  if (newLocs.length > 0) {
-    const processed = processLocations(newLocs);
-    allLocations = [...allLocations, ...processed];
-    renderCards();
-    if (map) updateMapMarkers();
-    showToast(`Found ${processed.length} new locations`);
-  } else {
-    showToast('No new locations found');
-  }
-}
- 
-// ── GOOGLE MAPS ────────────────────────────────────────────────────────────
-function initMap() {
-  if (!GOOGLE_KEY || !window.google) return;
-  map = new window.google.maps.Map(document.getElementById('map'), {
-    center: { lat: userLat, lng: userLng },
-    zoom: 12,
-    styles: [
-      { elementType:'geometry', stylers:[{color:'#0a0a0f'}] },
-      { elementType:'labels.text.stroke', stylers:[{color:'#0a0a0f'}] },
-      { elementType:'labels.text.fill', stylers:[{color:'#5a5870'}] },
-      { featureType:'road', elementType:'geometry', stylers:[{color:'#1c1c27'}] },
-      { featureType:'road', elementType:'geometry.stroke', stylers:[{color:'#13131a'}] },
-      { featureType:'road.highway', elementType:'geometry', stylers:[{color:'#252535'}] },
-      { featureType:'water', elementType:'geometry', stylers:[{color:'#13131a'}] },
-      { featureType:'poi', stylers:[{visibility:'off'}] },
-      { featureType:'transit', stylers:[{visibility:'off'}] }
-    ],
-    disableDefaultUI: true,
-    gestureHandling: 'greedy'
-  });
-  updateMapMarkers();
-}
- 
-function updateMapMarkers() {
-  if (!map) return;
-  const filtered = getFilteredLocations();
-  const filteredIds = new Set(filtered.map(l => l.id));
- 
-  // hide markers not in filter
-  Object.keys(markers).forEach(id => {
-    if (markers[id]) markers[id].setVisible(filteredIds.has(id));
-  });
- 
-  // add new markers
-  filtered.forEach(loc => {
-    if (markers[loc.id]) return;
-    const color = loc.classification === 'gold' ? '#f5c842' :
-                  loc.scores.mm >= 4.0 ? '#2dce89' :
-                  loc.scores.mm >= 2.5 ? '#9FE1CB' :
-                  loc.scores.vm >= 4.0 ? '#4d9fff' : '#85B7EB';
-    const marker = new window.google.maps.Marker({
-      position: { lat: loc.lat, lng: loc.lng },
-      map,
-      title: loc.name,
-      icon: {
-        path: window.google.maps.SymbolPath.CIRCLE,
-        fillColor: color,
-        fillOpacity: 1,
-        strokeColor: '#0a0a0f',
-        strokeWeight: 2,
-        scale: loc.classification === 'gold' ? 10 : 8
-      }
+async function nearbySearch(lat,lng){
+  const q=`[out:json][timeout:25];(node["amenity"="hospital"](around:5000,${lat},${lng});node["building"="industrial"](around:5000,${lat},${lng});node["amenity"="gym"](around:5000,${lat},${lng});node["amenity"="college"](around:5000,${lat},${lng});node["amenity"="university"](around:5000,${lat},${lng});node["office"="company"](around:5000,${lat},${lng});node["building"="warehouse"](around:5000,${lat},${lng}););out body 30;`;
+  try{
+    const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(q)});
+    const d=await r.json();let added=0;
+    (d.elements||[]).forEach(el=>{
+      if(!el.lat||!el.lon||!el.tags?.name)return;
+      const id=`osm-${el.id}`;if(locs.find(l=>l.id===id))return;
+      const t=el.tags,types=t.amenity==='hospital'?['hospital']:t.amenity==='gym'?['gym']:t.amenity==='college'||t.amenity==='university'?['university']:t.office==='company'?['corporate_office']:['storage'];
+      const nl={id,name:t.name,address:t['addr:street']?`${t['addr:housenumber']||''} ${t['addr:street']}, ${t['addr:city']||''}`.trim():`Near searched area`,lat:el.lat,lng:el.lon,types,rating:3.5,user_ratings_total:0,phone:t.phone||null,demand_signal:null};
+      const p=procLocs([nl]);if(p.length){locs.push(...p);added++}
     });
-    marker.addListener('click', () => openDetail(loc.id));
-    markers[loc.id] = marker;
-  });
+    renderCards();updateMarkers();
+    showToast(added>0?`Found ${added} new locations`:'No new locations nearby');
+  }catch{showToast('Search complete')}
 }
- 
-// ── TOAST ──────────────────────────────────────────────────────────────────
-let toastTimer;
-function showToast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+async function locateMe(){
+  if(!navigator.geolocation){showToast('Location not available');return}
+  showToast('Finding location...');
+  navigator.geolocation.getCurrentPosition(p=>{
+    ulat=p.coords.latitude;ulng=p.coords.longitude;
+    map.setView([ulat,ulng],13);
+    L.circleMarker([ulat,ulng],{radius:8,fillColor:'#2563a8',color:'#fff',weight:2.5,fillOpacity:1}).addTo(ml);
+    showToast('Location found');
+  },()=>showToast('Location access denied'));
 }
- 
-// ── SETTINGS PANEL ────────────────────────────────────────────────────────
-function openSettings() {
-  const gkey = localStorage.getItem('vs_gkey') || '';
-  const akey = localStorage.getItem('vs_akey') || '';
-  document.getElementById('s-gkey').value = gkey;
-  document.getElementById('s-akey').value = akey;
- 
-  // show key status
-  document.getElementById('gkey-status').innerHTML = gkey
-    ? `<div class="key-dot set"></div><span style="color:var(--green)">Key saved</span>`
-    : `<div class="key-dot unset"></div><span style="color:var(--text3)">Not set — map and search won't work</span>`;
-  document.getElementById('akey-status').innerHTML = akey
-    ? `<div class="key-dot set"></div><span style="color:var(--green)">Key saved</span>`
-    : `<div class="key-dot unset"></div><span style="color:var(--text3)">Not set — AI pitches won't generate</span>`;
- 
-  document.getElementById('settings-panel').classList.add('open');
+function openSettings(){
+  const a=localStorage.getItem('vs_akey')||'';
+  document.getElementById('sakey').value=a;
+  document.getElementById('akstat').innerHTML=a?`<div class="kdot set"></div><span style="color:var(--green)">Key saved — AI pitches active</span>`:`<div class="kdot unset"></div><span style="color:var(--text3)">Not set — fallback pitches used</span>`;
+  document.getElementById('spanel').classList.add('open');
 }
- 
-function closeSettings() {
-  document.getElementById('settings-panel').classList.remove('open');
-}
- 
-function saveSettings() {
-  const newG = document.getElementById('s-gkey').value.trim();
-  const newA = document.getElementById('s-akey').value.trim();
- 
-  if (newG) { localStorage.setItem('vs_gkey', newG); GOOGLE_KEY = newG; }
-  if (newA) { localStorage.setItem('vs_akey', newA); ANTHROPIC_KEY = newA; }
- 
-  closeSettings();
-  showToast('Keys saved ✓');
- 
-  // reload map if google key was just added
-  if (newG && !map) {
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${newG}&callback=initMap`;
-    script.async = true;
-    script.defer = true;
-    document.head.appendChild(script);
-    window.initMap = initMap;
-  }
-}
- 
-// close settings on background tap
-document.getElementById('settings-panel').addEventListener('click', function(e) {
-  if (e.target === this) closeSettings();
-});
- 
-// ── APP INIT ───────────────────────────────────────────────────────────────
-function initApp() {
-  GOOGLE_KEY = document.getElementById('gkey').value.trim();
-  ANTHROPIC_KEY = document.getElementById('akey').value.trim();
- 
-  // save keys
-  if (GOOGLE_KEY) localStorage.setItem('vs_gkey', GOOGLE_KEY);
-  if (ANTHROPIC_KEY) localStorage.setItem('vs_akey', ANTHROPIC_KEY);
- 
-  document.getElementById('setup-screen').style.display = 'none';
-  document.getElementById('loading').style.display = 'flex';
- 
-  setTimeout(() => {
-    // process seed data
-    allLocations = processLocations(SEED_LOCATIONS);
- 
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('topbar').style.display = 'block';
-    document.getElementById('cards-panel').style.display = 'block';
-    document.getElementById('results-bar').style.display = 'flex';
- 
-    renderCards();
- 
-    // load Google Maps if key provided
-    if (GOOGLE_KEY) {
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_KEY}&callback=initMap`;
-      script.async = true;
-      script.defer = true;
-      document.head.appendChild(script);
-      window.initMap = initMap;
-    }
- 
-    // enter to search
-    document.getElementById('search-input').addEventListener('keydown', e => {
-      if (e.key === 'Enter') doSearch();
-    });
- 
-    showToast(`${allLocations.length} locations loaded`);
-  }, 1200);
-}
- 
-// ── RESTORE KEYS ON LOAD ───────────────────────────────────────────────────
-window.addEventListener('load', () => {
-  const savedG = localStorage.getItem('vs_gkey');
-  const savedA = localStorage.getItem('vs_akey');
-  if (savedG) document.getElementById('gkey').value = savedG;
-  if (savedA) document.getElementById('akey').value = savedA;
-});
- 
-// close detail on background tap
-document.getElementById('detail-panel').addEventListener('click', function(e) {
-  if (e.target === this) closeDetail();
-});
+function closeSettings(){document.getElementById('spanel').classList.remove('open')}
+function saveSettings(){const a=document.getElementById('sakey').value.trim();if(a){localStorage.setItem('vs_akey',a);AKEY=a}closeSettings();showToast('Settings saved ✓')}
+let tt;
+function showToast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2400)}
+document.getElementById('dpanel').addEventListener('click',function(e){if(e.target===this)closeDetail()});
+document.getElementById('spanel').addEventListener('click',function(e){if(e.target===this)closeSettings()});
+document.getElementById('sinput').addEventListener('keydown',e=>{if(e.key==='Enter')doSearch()});
+window.addEventListener('load',()=>{locs=procLocs(SEED);initMap();renderCards();showToast(`${locs.length} locations loaded`)});
 </script>
 </body>
 </html>
