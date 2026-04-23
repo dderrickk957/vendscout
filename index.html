@@ -152,6 +152,33 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'DM Sans'
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .ecard{flex-shrink:0;width:220px;background:rgba(250,247,242,.97);border:1px dashed var(--border2);border-radius:var(--r);padding:18px;text-align:center;color:var(--text3);font-size:13px;line-height:1.6;box-shadow:var(--sh)}
 .eico{font-size:26px;margin-bottom:7px}
+#srcharea{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:95;display:none;animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translate(-50%,-50%) scale(.92)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+.srcharea-btn{height:36px;padding:0 18px;border-radius:24px;background:var(--surface);border:1.5px solid var(--border2);color:var(--text);font-family:DM Sans,sans-serif;font-size:13px;font-weight:600;cursor:pointer;box-shadow:var(--sh2);white-space:nowrap;transition:all .15s;display:flex;align-items:center;gap:6px}
+.srcharea-btn:active{transform:scale(.96)}
+.wl-star{font-size:15px;line-height:1;flex-shrink:0;cursor:pointer;opacity:.3;transition:opacity .15s}
+.wl-star.lit{opacity:1}
+.section-header{flex-shrink:0;display:flex;align-items:center;gap:8px;padding:0 2px}
+.section-header-line{width:1px;height:40px;background:var(--border2)}
+.section-header-label{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--text3);white-space:nowrap;writing-mode:vertical-rl;text-orientation:mixed}
+.jbox{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:12px 14px;margin-bottom:14px}
+.jbox p{font-size:12px;color:var(--text2);line-height:1.75}
+.ftbox{background:#f0ebe0;border:1px solid var(--border2);border-radius:var(--rs);padding:10px 12px;margin-bottom:14px}
+.ftbox p{font-size:12px;color:var(--text2);line-height:1.65}
+.ftbox strong{color:var(--text);font-weight:600}
+.fchip.awl{background:#fff8ec;border-color:rgba(201,150,26,.4);color:var(--gold)}
+#srcharea{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:95;display:none;animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translate(-50%,-50%) scale(.92)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+.srcharea-btn{height:36px;padding:0 18px;border-radius:24px;background:var(--surface);border:1.5px solid var(--border2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;box-shadow:var(--sh2);white-space:nowrap;transition:all .15s;display:flex;align-items:center;gap:6px}
+.srcharea-btn:active{transform:scale(.96)}
+.wl-star{font-size:15px;line-height:1;flex-shrink:0;cursor:pointer;transition:opacity .15s}
+.jbox{background:var(--surface2);border:1px solid var(--border);border-radius:var(--rs);padding:12px 14px;margin-bottom:14px}
+.jbox p{font-size:12px;color:var(--text2);line-height:1.75}
+.ftbox{background:#f0ebe0;border:1px solid var(--border2);border-radius:var(--rs);padding:10px 12px;margin-bottom:14px}
+.ftbox p{font-size:12px;color:var(--text2);line-height:1.65}
+.ftbox strong{color:var(--text);font-weight:600}
+.fchip.awl{background:#fff8ec;border-color:rgba(201,150,26,.4);color:var(--gold)}
+.wl-banner{display:none;background:#fff8ec;border-bottom:1px solid rgba(201,150,26,.25);padding:5px 14px;font-size:11px;font-weight:600;color:var(--gold);letter-spacing:.3px}
 </style>
 </head>
 <body>
@@ -173,12 +200,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'DM Sans'
   </div>
   <div class="frow">
     <div class="fchip" id="cg" onclick="toggleFilter('gold')">⭐ Gold Only</div>
+    <div class="fchip" id="cwl" onclick="toggleFilter('warmleads')">🔥 Warm Leads</div>
     <div class="fchip" id="cmm" onclick="toggleFilter('mm')">🟢 Mini-Market</div>
     <div class="fchip" id="cvm" onclick="toggleFilter('vm')">🔵 Standard VM</div>
     <div class="fchip" id="cv" onclick="toggleFilter('visited')">✅ Visited</div>
     <div class="fchip" id="cu" onclick="toggleFilter('unvisited')">⭕ Not Visited</div>
   </div>
 </div>
+<div id="srcharea"><button class="srcharea-btn" onclick="searchThisArea()">🔍 Search this area</button></div>
 <div id="cpanel">
   <div class="rpw"><div class="rp" id="rtxt">Loading...</div></div>
   <div class="cscroll" id="ccon"></div>
@@ -196,6 +225,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'DM Sans'
         <div class="scrd"><div class="slbl mm">Mini-Market</div><div class="snum mm" id="dmm">—</div><div class="sgrade" id="dmmg"></div></div>
         <div class="scrd"><div class="slbl vm">Standard VM</div><div class="snum vm" id="dvm">—</div><div class="sgrade" id="dvmg"></div></div>
       </div>
+      <div class="slabel">Score Justification</div>
+      <div class="jbox"><p id="djust">Analyzing location...</p></div>
+      <div class="ftbox"><p id="dft">Loading foot traffic insight...</p></div>
       <div class="slabel">Contact Info</div>
       <div class="cbox" id="dcon"></div>
       <div id="ddemw" style="display:none;margin-bottom:14px">
@@ -218,6 +250,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);font-family:'DM Sans'
         <button class="abtn acall" id="dcall" onclick="callLoc()">📞 Call</button>
         <button class="abtn anav" onclick="navLoc()">🗺 Navigate</button>
       </div>
+      <button class="snbtn" id="bwl" onclick="toggleWarmLead()" style="margin-top:8px">🔥 Add to Warm Leads</button>
     </div>
   </div>
 </div>
@@ -257,8 +290,8 @@ function getUD(id){return loadUD()[id]||{status:null,notes:''}}
 function setUD(id,u){const d=loadUD();d[id]={...(d[id]||{status:null,notes:''}), ...u};saveUD(d)}
 function procLocs(raw){return raw.map(l=>{const s=score(l),c=classify(s);return{...l,scores:s,classification:c,...getUD(l.id)}}).filter(l=>l.classification!=='pass')}
 function toggleFilter(f){filter=filter===f?null:f;updateChips();renderCards();updateMarkers()}
-function updateChips(){const map={gold:'g',mm:'mm',vm:'vm',visited:'v',unvisited:'u'};['gold','mm','vm','visited','unvisited'].forEach(f=>{const el=document.getElementById('c'+(map[f]||f));if(!el)return;el.className='fchip'+(filter===f?' a'+f.charAt(0):'')});}
-function getFiltered(){return locs.filter(l=>{if(!filter)return true;if(filter==='gold')return l.classification==='gold';if(filter==='mm')return l.scores.mm>=4;if(filter==='vm')return l.scores.vm>=4;if(filter==='visited')return['visited','contacted','placed'].includes(l.status);if(filter==='unvisited')return!l.status;return true})}
+function updateChips(){const cmap={gold:['g','ag'],mm:['mm','amm'],vm:['vm','avm'],visited:['v','av'],unvisited:['u','au'],warmleads:['wl','awl']};Object.entries(cmap).forEach(([f,[id,cls]])=>{const el=document.getElementById('c'+id);if(!el)return;el.className='fchip'+(filter===f?' '+cls:'')});}
+function getFiltered(){return locs.filter(l=>{if(!filter)return true;if(filter==='gold')return l.classification==='gold';if(filter==='mm')return l.scores.mm>=4;if(filter==='vm')return l.scores.vm>=4;if(filter==='visited')return['visited','contacted','placed'].includes(l.status);if(filter==='unvisited')return!l.status;if(filter==='warmleads')return getUD(l.id).warmLead===true;return true})}
 function mcolor(l){if(l.classification==='gold')return'#c9961a';if(l.scores.mm>=4)return'#2a7a4f';if(l.scores.mm>=2.5)return'#5aab7a';if(l.scores.vm>=4)return'#2563a8';return'#7aa8d4'}
 function memo(l){if(l.classification==='gold')return'⭐';if(l.scores.mm>=4)return'🟢';if(l.scores.vm>=4)return'🔵';return'🟡'}
 function initMap(){
@@ -267,6 +300,10 @@ function initMap(){
   L.control.zoom({position:'bottomright'}).addTo(map);
   ml=L.layerGroup().addTo(map);
   updateMarkers();
+  // show search-this-area button when map is panned
+  let hasMoved=false;
+  map.on('movestart',()=>{hasMoved=true;hideSearchAreaBtn()});
+  map.on('moveend',()=>{if(hasMoved){clearTimeout(searchAreaTimer);searchAreaTimer=setTimeout(()=>{showSearchAreaBtn()},600)}hasMoved=false});
 }
 function updateMarkers(){
   if(!ml)return;ml.clearLayers();
@@ -281,15 +318,46 @@ function scol(s){return{visited:'#2a7a4f',contacted:'#2563a8',placed:'#c9961a',p
 function slbl(s){return{visited:'Visited',contacted:'Called',placed:'Machine Placed',pass:'Passed'}[s]||''}
 function renderCards(){
   const con=document.getElementById('ccon'),fil=getFiltered();
-  document.getElementById('rtxt').innerHTML=`Showing <span>${fil.length}</span> of <span>${locs.length}</span> locations`;
-  if(!fil.length){con.innerHTML='<div class="ecard"><div class="eico">🔍</div>No locations match this filter.</div>';return}
-  fil.sort((a,b)=>{if(a.classification==='gold'&&b.classification!=='gold')return-1;if(b.classification==='gold'&&a.classification!=='gold')return 1;return b.scores.mm-a.scores.mm});
-  con.innerHTML=fil.map(l=>{
+  const warmLeadIds=new Set(Object.keys(loadUD()).filter(id=>loadUD()[id].warmLead));
+  const wlCount=warmLeadIds.size;
+  document.getElementById('rtxt').innerHTML=`Showing <span>${fil.length}</span> of <span>${locs.length}</span> locations${wlCount?` &bull; <span style="color:var(--gold)">${wlCount} warm lead${wlCount>1?'s':''}</span>`:''}`;
+  if(!fil.length){con.innerHTML='<div class="ecard"><div class="eico">'+(filter==='warmleads'?'🔥':'🔍')+'</div>'+(filter==='warmleads'?'No warm leads yet. Tap 🔥 in any location detail to add one.':'No locations match this filter.')+'</div>';return}
+  // sort: warm leads first, then gold, then by mm score
+  fil.sort((a,b)=>{
+    const aw=warmLeadIds.has(a.id),bw=warmLeadIds.has(b.id);
+    if(aw&&!bw)return-1;if(bw&&!aw)return 1;
+    if(a.classification==='gold'&&b.classification!=='gold')return-1;
+    if(b.classification==='gold'&&a.classification!=='gold')return 1;
+    return b.scores.mm-a.scores.mm;
+  });
+  con.innerHTML=fil.map((l,i)=>{
     const[bt,bc]=badgeFor(l.classification),ud=getUD(l.id),bc2=l.classification==='gold'?'gold':l.scores.mm>=4?'grn':'blu';
     const sh=ud.status?`<div class="cstat"><span class="sdot" style="background:${scol(ud.status)}"></span>${slbl(ud.status)}</div>`:'';
     const dh=l.demand_signal?`<div class="dsig">${l.demand_signal}</div>`:'';
-    return`<div class="lcard ${bc2}" onclick="openDetail('${l.id}')"><div class="ctop"><div class="cname">${l.name}</div><div class="cbadge ${bc}">${bt}</div></div><div class="caddr">${l.address}</div><div class="scrow"><div class="sp mm">🟢 MM ${l.scores.mm.toFixed(1)}</div><div class="sp vm">🔵 VM ${l.scores.vm.toFixed(1)}</div></div>${dh}${sh}</div>`;
+    const wlIcon=warmLeadIds.has(l.id)?'🔥 ':'';
+    const wlBorder=warmLeadIds.has(l.id)?'border-top:2px solid var(--gold);':'';
+    return`<div class="lcard ${bc2}" style="${wlBorder}" onclick="openDetail('${l.id}')"><div class="ctop"><div class="cname">${wlIcon}${l.name}</div><div class="cbadge ${bc}">${bt}</div></div><div class="caddr">${l.address}</div><div class="scrow"><div class="sp mm">🟢 MM ${l.scores.mm.toFixed(1)}</div><div class="sp vm">🔵 VM ${l.scores.vm.toFixed(1)}</div></div>${dh}${sh}</div>`;
   }).join('');
+}
+function buildJustification(l){
+  const k=typeKey(l.types),s=l.scores,rv=l.user_ratings_total||0;
+  const typeNames={manufacturer:'manufacturing facility',hospital:'hospital or healthcare facility',storage:'warehouse or distribution center',gym:'gym or fitness center',university:'college or university campus',medical_clinic:'urgent care or medical clinic',corporate_office:'office building or business park',hotel:'hotel',apartment_complex:'apartment complex',default:'business location'};
+  const tname=typeNames[k]||typeNames.default;
+  let mmR='',vmR='';
+  if(k==='manufacturer'||k==='storage'){mmR='It operates shift workers around the clock with limited food alternatives nearby, making it ideal for a secure open-door mini-market in the break room.';vmR='High headcount and 24/7 operation support strong traditional vending sales, particularly for snacks, drinks, and energy products.'}
+  else if(k==='hospital'){mmR='Healthcare staff work long overnight shifts with the cafeteria closed. A 24/7 healthy mini-market in a staff-only area would serve a genuine unmet need.';vmR='High 24/7 foot traffic from patients, visitors, and staff makes waiting areas strong standard vending locations.'}
+  else if(k==='gym'){mmR='Gym members are health-conscious and actively seeking protein bars, electrolytes, and clean snacks — a perfect product fit for an open-door smart cooler.';vmR='Member traffic is consistent with morning and evening peaks, supporting standard vending in common areas.'}
+  else if(k==='university'){mmR='Campus access controls and student accountability make this viable, though the open-campus nature requires careful placement in secured buildings.';vmR='Large daily student population with strong foot traffic between classes makes this a reliable standard vending location.'}
+  else if(k==='medical_clinic'){mmR='Extended hours and high patient wait times create genuine demand. Staff break areas could support a small healthy cooler.';vmR='High review volume indicates strong patient traffic with extended waiting periods — ideal for impulse vending purchases.'}
+  else if(k==='corporate_office'){mmR='Office employees are repeat daily users with disposable income and demand for convenient healthy food. Badge access makes this suitable for an open-door machine.';vmR='Consistent Monday–Friday traffic from professionals who frequently seek quick snacks and beverages during the workday.'}
+  else{mmR='This location has characteristics that may support a mini-market depending on access control and headcount. A site visit is recommended to confirm.';vmR='Foot traffic levels and location type suggest moderate standard vending potential. A site visit will confirm.'}
+  const revNote=rv>500?`The ${rv.toLocaleString()} Google reviews confirm this is a high-traffic location.`:rv>100?`With ${rv} Google reviews, this location has solid documented traffic.`:`Review count is modest — foot traffic should be confirmed with a site visit.`;
+  return{mm:`This ${tname} scores ${s.mm.toFixed(1)} for mini-market placement. ${mmR} ${revNote}`,vm:`This ${tname} scores ${s.vm.toFixed(1)} for standard vending. ${vmR} ${revNote}`};
+}
+function buildFTNote(l){
+  const rv=l.user_ratings_total||0;
+  const est=rv>500?'likely 200–500+ people per day':rv>200?'likely 100–300 people per day':rv>50?'estimated 50–150 people per day':'unknown — site visit recommended';
+  return`<strong>Estimated foot traffic:</strong> ${est}, based on ${rv} Google reviews as a proxy indicator. For precise counts, spend 30–60 minutes on-site during peak hours (morning arrival, lunch, end of shift) and do a manual headcount. This is the most reliable data available without a paid tool like Placer.ai (~$400/mo).`;
 }
 async function openDetail(id){
   const l=locs.find(x=>x.id===id);if(!l)return;detailId=id;
@@ -301,12 +369,23 @@ async function openDetail(id){
   document.getElementById('dmmg').textContent=grade(l.scores.mm);
   document.getElementById('dvmg').textContent=grade(l.scores.vm);
   document.getElementById('dnotes').value=ud.notes||'';
+  // score justification
+  const just=buildJustification(l);
+  const mmScore=l.scores.mm,vmScore=l.scores.vm;
+  const leadScore=mmScore>=4&&vmScore>=4?'both machines':mmScore>=4?'mini-market':vmScore>=4?'standard vending':'moderate potential';
+  document.getElementById('djust').textContent=`Mini-Market: ${just.mm} Standard VM: ${just.vm}`;
+  // foot traffic note
+  document.getElementById('dft').innerHTML=buildFTNote(l);
   const r=role(l.types),ph=l.phone?`<div class="crow"><span class="ckey">Phone</span><span class="cval"><a href="tel:${l.phone}">${l.phone}</a></span></div>`:`<div class="crow"><span class="ckey">Phone</span><span class="cval" style="color:var(--text3)">Search on Google</span></div>`;
   document.getElementById('dcon').innerHTML=`<div class="crow"><span class="ckey">Ask for</span><span class="cval">${r}</span></div>${ph}<div class="crow"><span class="ckey">Type</span><span class="cval">${typeKey(l.types).replace(/_/g,' ')}</span></div>`;
   const dw=document.getElementById('ddemw');
   if(l.demand_signal){dw.style.display='block';document.getElementById('ddem').textContent=l.demand_signal}else{dw.style.display='none'}
   const cb=document.getElementById('dcall');cb.style.opacity=l.phone?'1':'.4';cb.disabled=!l.phone;
   ['bv','bc','bp','bx'].forEach((b,i)=>{const s=['visited','contacted','placed','pass'][i];document.getElementById(b).className='stbtn'+(ud.status===s?' a'+['v','c','pl','p'][i]:'')});
+  // warm lead button
+  const wlBtn=document.getElementById('bwl');
+  if(ud.warmLead){wlBtn.textContent='🔥 Remove from Warm Leads';wlBtn.style.background='#fff8ec';wlBtn.style.color='var(--gold)';wlBtn.style.borderColor='rgba(201,150,26,.4)'}
+  else{wlBtn.textContent='🔥 Add to Warm Leads';wlBtn.style.background='';wlBtn.style.color='';wlBtn.style.borderColor=''}
   document.getElementById('dpanel').classList.add('open');
   if(map)map.panTo([l.lat,l.lng]);
   genPitch(l);
@@ -333,11 +412,44 @@ function setStatus(s){
   renderCards();showToast(ns?`Status: ${slbl(ns)}`:'Status cleared');
 }
 function saveNotes(){if(!detailId)return;setUD(detailId,{notes:document.getElementById('dnotes').value});showToast('Notes saved ✓')}
+function toggleWarmLead(){
+  if(!detailId)return;
+  const ud=getUD(detailId),nwl=!ud.warmLead;
+  setUD(detailId,{warmLead:nwl});
+  const wlBtn=document.getElementById('bwl');
+  if(nwl){wlBtn.textContent='🔥 Remove from Warm Leads';wlBtn.style.background='#fff8ec';wlBtn.style.color='var(--gold)';wlBtn.style.borderColor='rgba(201,150,26,.4)';showToast('Added to Warm Leads 🔥')}
+  else{wlBtn.textContent='🔥 Add to Warm Leads';wlBtn.style.background='';wlBtn.style.color='';wlBtn.style.borderColor='';showToast('Removed from Warm Leads')}
+  renderCards();
+}
 function callLoc(){const l=locs.find(x=>x.id===detailId);if(l?.phone)window.location.href=`tel:${l.phone}`}
 function navLoc(){const l=locs.find(x=>x.id===detailId);if(l)window.open(`https://maps.apple.com/?daddr=${encodeURIComponent(l.address)}`,'_blank')}
+let searchAreaTimer=null;
+function showSearchAreaBtn(){document.getElementById('srcharea').style.display='flex'}
+function hideSearchAreaBtn(){document.getElementById('srcharea').style.display='none'}
+async function searchThisArea(){
+  hideSearchAreaBtn();
+  const c=map.getCenter();
+  ulat=c.lat;ulng=c.lng;
+  // clear non-seed, non-protected locations
+  const protected_ids=new Set();
+  const ud=loadUD();
+  Object.keys(ud).forEach(id=>{if(ud[id].status||ud[id].warmLead||ud[id].notes)protected_ids.add(id)});
+  const seedIds=new Set(SEED.map(s=>s.id));
+  locs=locs.filter(l=>seedIds.has(l.id)||protected_ids.has(l.id));
+  renderCards();updateMarkers();
+  showToast('Searching this area...');
+  await nearbySearch(ulat,ulng);
+}
 async function doSearch(){
   const q=document.getElementById('sinput').value.trim();if(!q){showToast('Enter a location');return}
+  hideSearchAreaBtn();
   showToast('Searching...');
+  // clear non-protected locations before searching new area
+  const protected_ids=new Set();
+  const ud=loadUD();
+  Object.keys(ud).forEach(id=>{if(ud[id].status||ud[id].warmLead||ud[id].notes)protected_ids.add(id)});
+  const seedIds=new Set(SEED.map(s=>s.id));
+  locs=locs.filter(l=>seedIds.has(l.id)||protected_ids.has(l.id));
   try{
     const g=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`);
     const gd=await g.json();
