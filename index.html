@@ -423,93 +423,111 @@ function toggleWarmLead(){
 }
 function callLoc(){const l=locs.find(x=>x.id===detailId);if(l?.phone)window.location.href=`tel:${l.phone}`}
 function navLoc(){const l=locs.find(x=>x.id===detailId);if(l)window.open(`https://maps.apple.com/?daddr=${encodeURIComponent(l.address)}`,'_blank')}
+// ── BOUNDING BOX HELPERS ──────────────────────────────────────────────────
+function getMapBounds(){
+  const b=map.getBounds();
+  return{s:b.getSouth(),w:b.getWest(),n:b.getNorth(),e:b.getEast()};
+}
+function inBounds(lat,lng,bb){
+  return lat>=bb.s&&lat<=bb.n&&lng>=bb.w&&lng<=bb.e;
+}
+function clearNonProtectedLocs(){
+  const protected_ids=new Set();
+  const ud=loadUD();
+  Object.keys(ud).forEach(id=>{if(ud[id].status||ud[id].warmLead||ud[id].notes)protected_ids.add(id)});
+  const seedIds=new Set(SEED.map(s=>s.id));
+  locs=locs.filter(l=>seedIds.has(l.id)||protected_ids.has(l.id));
+}
+
 let searchAreaTimer=null;
 function showSearchAreaBtn(){document.getElementById('srcharea').style.display='flex'}
 function hideSearchAreaBtn(){document.getElementById('srcharea').style.display='none'}
+
 async function searchThisArea(){
   hideSearchAreaBtn();
-  const c=map.getCenter();
-  ulat=c.lat;ulng=c.lng;
-  // clear non-seed, non-protected locations
-  const protected_ids=new Set();
-  const ud=loadUD();
-  Object.keys(ud).forEach(id=>{if(ud[id].status||ud[id].warmLead||ud[id].notes)protected_ids.add(id)});
-  const seedIds=new Set(SEED.map(s=>s.id));
-  locs=locs.filter(l=>seedIds.has(l.id)||protected_ids.has(l.id));
+  clearNonProtectedLocs();
   renderCards();updateMarkers();
-  showToast('Searching this area...');
-  await nearbySearch(ulat,ulng);
+  showToast('Searching visible area...');
+  await searchByBounds(getMapBounds());
 }
+
 async function doSearch(){
-  const q=document.getElementById('sinput').value.trim();if(!q){showToast('Enter a location');return}
+  const q=document.getElementById('sinput').value.trim();
+  if(!q){showToast('Enter a location');return}
   hideSearchAreaBtn();
   showToast('Searching...');
-  // clear non-protected locations before searching new area
-  const protected_ids=new Set();
-  const ud=loadUD();
-  Object.keys(ud).forEach(id=>{if(ud[id].status||ud[id].warmLead||ud[id].notes)protected_ids.add(id)});
-  const seedIds=new Set(SEED.map(s=>s.id));
-  locs=locs.filter(l=>seedIds.has(l.id)||protected_ids.has(l.id));
+  clearNonProtectedLocs();
   try{
     const g=await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1`);
     const gd=await g.json();
-    if(gd[0]){ulat=parseFloat(gd[0].lat);ulng=parseFloat(gd[0].lon);map.setView([ulat,ulng],13);await nearbySearch(ulat,ulng)}
-    else showToast('Location not found');
+    if(gd[0]){
+      ulat=parseFloat(gd[0].lat);ulng=parseFloat(gd[0].lon);
+      map.setView([ulat,ulng],13);
+      // wait for map to settle then use its actual bounding box
+      setTimeout(async()=>{await searchByBounds(getMapBounds())},400);
+    }else showToast('Location not found');
   }catch{showToast('Search failed')}
 }
-async function nearbySearch(lat,lng){
-  let added=0;
 
-  // Strategy 1: Nominatim keyword searches — broad, works like Google
+async function searchByBounds(bb){
+  let added=0;
+  const seen=new Set(locs.map(l=>l.name.toLowerCase()));
+  const bbStr=`${bb.s},${bb.w},${bb.n},${bb.e}`;
+  const center={lat:(bb.s+bb.n)/2,lng:(bb.w+bb.e)/2};
+
+  // Strategy 1: Nominatim searches scoped to bounding box viewbox
   const searches=[
     {q:'warehouse',types:['storage']},
     {q:'distribution center',types:['storage']},
-    {q:'manufacturing',types:['manufacturer']},
+    {q:'manufacturing plant',types:['manufacturer']},
     {q:'factory',types:['manufacturer']},
-    {q:'hospital',types:['general_hospital']},
-    {q:'urgent care',types:['medical_clinic']},
-    {q:'gym fitness',types:['gym']},
+    {q:'hospital medical center',types:['general_hospital']},
+    {q:'urgent care clinic',types:['medical_clinic']},
+    {q:'gym fitness center',types:['gym']},
     {q:'college university',types:['university']},
-    {q:'office park',types:['corporate_office']},
+    {q:'office park business park',types:['corporate_office']},
     {q:'hotel',types:['hotel']},
     {q:'apartment complex',types:['apartment_complex']}
   ];
 
-  const seen=new Set(locs.map(l=>l.name.toLowerCase()));
-
   for(const s of searches){
     try{
-      const url=`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(s.q+' '+document.getElementById('sinput').value.trim())}&limit=6&addressdetails=1`;
+      // viewbox constrains results to visible map area; bounded=1 enforces it strictly
+      const url=`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(s.q)}&viewbox=${bb.w},${bb.n},${bb.e},${bb.s}&bounded=1&limit=8&addressdetails=1`;
       const r=await fetch(url,{headers:{'Accept-Language':'en'}});
       const data=await r.json();
       data.forEach(el=>{
-        if(!el.lat||!el.lon||!el.display_name)return;
+        const elat=parseFloat(el.lat),elng=parseFloat(el.lon);
+        if(!elat||!elng||!el.display_name)return;
+        if(!inBounds(elat,elng,bb))return; // double-check it's in view
         const name=el.display_name.split(',')[0].trim();
         if(seen.has(name.toLowerCase()))return;
         const id=`nom-${el.place_id}`;
         if(locs.find(l=>l.id===id))return;
         seen.add(name.toLowerCase());
         const addr=el.address?[el.address.house_number,el.address.road,el.address.city||el.address.town||el.address.county].filter(Boolean).join(' '):el.display_name.split(',').slice(0,3).join(',');
-        const nl={id,name,address:addr,lat:parseFloat(el.lat),lng:parseFloat(el.lon),types:s.types,rating:3.5,user_ratings_total:0,phone:null,demand_signal:null};
+        const nl={id,name,address:addr,lat:elat,lng:elng,types:s.types,rating:3.5,user_ratings_total:0,phone:null,demand_signal:null};
         const p=procLocs([nl]);if(p.length){locs.push(...p);added++}
       });
     }catch{}
-    await new Promise(res=>setTimeout(res,120)); // rate limit
+    await new Promise(res=>setTimeout(res,100));
   }
 
-  // Strategy 2: Overpass broad search — any named business node/way nearby
+  // Strategy 2: Overpass using exact bounding box — only returns what's visible
   try{
-    const q=`[out:json][timeout:20];(
-      node["name"]["amenity"](around:6000,${lat},${lng});
-      node["name"]["office"](around:6000,${lat},${lng});
-      node["name"]["building"~"industrial|warehouse|office|hospital|gym"](around:6000,${lat},${lng});
-      way["name"]["building"~"industrial|warehouse|office|hospital"](around:6000,${lat},${lng});
-    );out center 40;`;
+    const q=`[out:json][timeout:25][bbox:${bb.s},${bb.w},${bb.n},${bb.e}];(
+      node["name"]["amenity"~"hospital|clinic|gym|college|university|hotel"];
+      node["name"]["office"];
+      node["name"]["building"~"industrial|warehouse|office|hospital"];
+      way["name"]["building"~"industrial|warehouse|office|hospital"];
+      way["name"]["amenity"~"hospital|gym|college|university"];
+    );out center 60;`;
     const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(q)});
     const d=await r.json();
     (d.elements||[]).forEach(el=>{
       const elat=el.lat||el.center?.lat,elng=el.lon||el.center?.lon;
       if(!elat||!elng||!el.tags?.name)return;
+      if(!inBounds(elat,elng,bb))return; // ensure it's in visible area
       const name=el.tags.name;
       if(seen.has(name.toLowerCase()))return;
       const id=`osm-${el.id}`;if(locs.find(l=>l.id===id))return;
@@ -529,7 +547,15 @@ async function nearbySearch(lat,lng){
   }catch{}
 
   renderCards();updateMarkers();
-  showToast(added>0?`Found ${added} new locations`:'No new locations found — try a broader search term');
+  // pan map to show all new markers
+  if(added>0){
+    const newLocs=locs.filter(l=>inBounds(l.lat,l.lng,bb)&&!SEED.find(s=>s.id===l.id));
+    if(newLocs.length>0){
+      const group=L.featureGroup(newLocs.map(l=>L.marker([l.lat,l.lng])));
+      try{map.fitBounds(group.getBounds().pad(0.1))}catch{}
+    }
+  }
+  showToast(added>0?`Found ${added} new locations in view`:'No new locations in this area');
 }
 async function locateMe(){
   if(!navigator.geolocation){showToast('Location not available');return}
