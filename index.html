@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>VendScout</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ── RESET & BASE ─────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c27;
+    --surface3: #252535;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f0eff8;
+    --text2: #9896b0;
+    --text3: #5a5870;
+    --gold: #f5c842;
+    --gold-dim: rgba(245,200,66,0.15);
+    --green: #2dce89;
+    --green-dim: rgba(45,206,137,0.15);
+    --blue: #4d9fff;
+    --blue-dim: rgba(77,159,255,0.15);
+    --teal: #1bc5a4;
+    --amber: #ff9f43;
+    --red: #ff6b6b;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --safe-bottom: env(safe-area-inset-bottom, 20px);
+  }
+  html, body { height: 100%; overflow: hidden; background: var(--bg); font-family: 'Syne', sans-serif; color: var(--text); }
+
+  /* ── MAP CONTAINER ────────────────────────────────── */
+  #map { position: fixed; inset: 0; z-index: 0; }
+  #map-placeholder {
+    position: fixed; inset: 0; z-index: 0;
+    background: radial-gradient(ellipse at 30% 40%, #1a1a2e 0%, #0a0a0f 70%);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .map-grid {
+    position: absolute; inset: 0; opacity: 0.08;
+    background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  /* ── TOP BAR ──────────────────────────────────────── */
+  #topbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    padding: 12px 16px 10px;
+    padding-top: calc(12px + env(safe-area-inset-top, 0px));
+    background: linear-gradient(to bottom, rgba(10,10,15,0.98) 0%, rgba(10,10,15,0.85) 100%);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+  }
+  .topbar-row1 { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .logo { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+  .logo span { color: var(--gold); }
+  .locate-btn {
+    width: 38px; height: 38px; border-radius: 50%;
+    background: var(--surface2); border: 1px solid var(--border2);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 18px; transition: all 0.2s;
+  }
+  .locate-btn:active { transform: scale(0.92); background: var(--surface3); }
+
+  /* search row */
+  .search-row { display: flex; gap: 8px; }
+  .search-wrap { flex: 1; position: relative; }
+  .search-wrap input {
+    width: 100%; height: 42px; background: var(--surface2);
+    border: 1px solid var(--border2); border-radius: var(--radius-sm);
+    color: var(--text); font-family: 'Syne', sans-serif; font-size: 14px;
+    padding: 0 14px 0 38px; outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-wrap input:focus { border-color: var(--gold); }
+  .search-wrap input::placeholder { color: var(--text3); }
+  .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 15px; pointer-events: none; }
+  .search-btn {
+    height: 42px; padding: 0 16px; border-radius: var(--radius-sm);
+    background: var(--gold); color: #000; font-family: 'Syne', sans-serif;
+    font-size: 13px; font-weight: 700; border: none; cursor: pointer;
+    white-space: nowrap; transition: all 0.15s;
+  }
+  .search-btn:active { transform: scale(0.95); opacity: 0.9; }
+
+  /* filter row */
+  .filter-row { display: flex; gap: 8px; margin-top: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+  .filter-row::-webkit-scrollbar { display: none; }
+  .filter-chip {
+    height: 30px; padding: 0 12px; border-radius: 20px; flex-shrink: 0;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.3px;
+    border: 1px solid var(--border2); background: var(--surface2);
+    color: var(--text2); cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .filter-chip.active-gold { background: var(--gold-dim); border-color: var(--gold); color: var(--gold); }
+  .filter-chip.active-green { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+  .filter-chip.active-blue { background: var(--blue-dim); border-color: var(--blue); color: var(--blue); }
+  .filter-chip:active { transform: scale(0.96); }
+
+  /* ── LOCATION CARDS LIST ──────────────────────────── */
+  #cards-panel {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 90;
+    padding-bottom: var(--safe-bottom);
+  }
+  .cards-scroll { display: flex; gap: 10px; overflow-x: auto; padding: 10px 16px 14px; scrollbar-width: none; }
+  .cards-scroll::-webkit-scrollbar { display: none; }
+
+  /* location card */
+  .loc-card {
+    flex-shrink: 0; width: 260px; background: rgba(19,19,26,0.96);
+    border: 1px solid var(--border2); border-radius: var(--radius);
+    padding: 12px 14px; cursor: pointer; transition: all 0.2s;
+    backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  }
+  .loc-card:active { transform: scale(0.97); }
+  .loc-card.gold { border-color: rgba(245,200,66,0.4); }
+  .loc-card.green { border-color: rgba(45,206,137,0.3); }
+  .loc-card.blue { border-color: rgba(77,159,255,0.3); }
+
+  .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+  .card-name { font-size: 13px; font-weight: 700; line-height: 1.3; flex: 1; }
+  .card-badge { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }
+  .badge-gold { background: var(--gold-dim); color: var(--gold); border: 1px solid rgba(245,200,66,0.3); }
+  .badge-mm { background: var(--green-dim); color: var(--green); border: 1px solid rgba(45,206,137,0.3); }
+  .badge-vm { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(77,159,255,0.3); }
+  .badge-mod { background: rgba(255,159,67,0.15); color: var(--amber); border: 1px solid rgba(255,159,67,0.3); }
+
+  .card-addr { font-size: 11px; color: var(--text3); margin-bottom: 8px; font-family: 'DM Mono', monospace; }
+  .score-row { display: flex; gap: 6px; }
+  .score-pill { display: flex; align-items: center; gap: 4px; font-size: 10px; font-family: 'DM Mono', monospace; padding: 3px 8px; border-radius: 6px; }
+  .score-pill.mm { background: var(--green-dim); color: var(--green); }
+  .score-pill.vm { background: var(--blue-dim); color: var(--blue); }
+  .card-status { margin-top: 8px; font-size: 10px; font-weight: 600; }
+  .status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; }
+
+  /* ── DETAIL PANEL ─────────────────────────────────── */
+  #detail-panel {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: none; align-items: flex-end;
+  }
+  #detail-panel.open { display: flex; }
+  .detail-sheet {
+    width: 100%; max-height: 90vh; background: var(--surface);
+    border-radius: var(--radius) var(--radius) 0 0;
+    border-top: 1px solid var(--border2);
+    overflow-y: auto; -webkit-overflow-scrolling: touch;
+    animation: slideUp 0.3s cubic-bezier(0.32,0.72,0,1);
+  }
+  @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .sheet-handle { width: 36px; height: 4px; background: var(--surface3); border-radius: 2px; margin: 12px auto 0; }
+  .sheet-body { padding: 16px 20px; padding-bottom: calc(20px + var(--safe-bottom)); }
+
+  .detail-header { margin-bottom: 16px; }
+  .detail-name { font-size: 20px; font-weight: 800; line-height: 1.2; margin-bottom: 4px; }
+  .detail-addr { font-size: 12px; color: var(--text2); font-family: 'DM Mono', monospace; }
+  .detail-close {
+    position: absolute; top: 16px; right: 16px;
+    width: 32px; height: 32px; border-radius: 50%;
+    background: var(--surface2); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 16px; color: var(--text2);
+  }
+
+  .scores-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .score-card { background: var(--surface2); border-radius: var(--radius-sm); padding: 12px; border: 1px solid var(--border); }
+  .score-card-label { font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px; }
+  .score-card-label.mm { color: var(--green); }
+  .score-card-label.vm { color: var(--blue); }
+  .score-num { font-size: 32px; font-weight: 800; font-family: 'DM Mono', monospace; line-height: 1; }
+  .score-num.mm { color: var(--green); }
+  .score-num.vm { color: var(--blue); }
+  .score-grade { font-size: 11px; color: var(--text2); margin-top: 2px; }
+
+  .section-label { font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text3); margin-bottom: 10px; }
+
+  .contact-box { background: var(--surface2); border-radius: var(--radius-sm); padding: 12px; margin-bottom: 16px; border: 1px solid var(--border); }
+  .contact-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .contact-row:last-child { border-bottom: none; }
+  .contact-key { font-size: 11px; color: var(--text3); }
+  .contact-val { font-size: 12px; font-weight: 600; font-family: 'DM Mono', monospace; }
+  .contact-val a { color: var(--gold); text-decoration: none; }
+
+  .pitch-box {
+    background: linear-gradient(135deg, rgba(245,200,66,0.08) 0%, rgba(13,13,20,0) 60%);
+    border: 1px solid rgba(245,200,66,0.2); border-radius: var(--radius-sm);
+    padding: 14px; margin-bottom: 16px;
+  }
+  .pitch-text { font-size: 13px; line-height: 1.7; color: var(--text2); }
+  .pitch-loading { display: flex; align-items: center; gap: 8px; color: var(--text3); font-size: 12px; }
+  .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
+
+  /* status buttons */
+  .status-btns { display: flex; gap: 8px; margin-bottom: 14px; }
+  .status-btn {
+    flex: 1; height: 40px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border2); background: var(--surface2);
+    color: var(--text2); font-family: 'Syne', sans-serif; font-size: 11px;
+    font-weight: 700; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+  }
+  .status-btn:active { transform: scale(0.96); }
+  .status-btn.active-visited { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+  .status-btn.active-contacted { background: var(--blue-dim); border-color: var(--blue); color: var(--blue); }
+  .status-btn.active-pass { background: rgba(255,107,107,0.15); border-color: var(--red); color: var(--red); }
+  .status-btn.active-placed { background: var(--gold-dim); border-color: var(--gold); color: var(--gold); }
+
+  .notes-area {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border2);
+    border-radius: var(--radius-sm); color: var(--text); padding: 12px;
+    font-family: 'Syne', sans-serif; font-size: 13px; line-height: 1.6;
+    resize: none; outline: none; min-height: 100px;
+    transition: border-color 0.2s;
+  }
+  .notes-area:focus { border-color: var(--gold); }
+  .notes-area::placeholder { color: var(--text3); }
+  .save-note-btn {
+    width: 100%; height: 44px; margin-top: 8px; border-radius: var(--radius-sm);
+    background: var(--surface3); border: 1px solid var(--border2);
+    color: var(--text2); font-family: 'Syne', sans-serif; font-size: 13px;
+    font-weight: 700; cursor: pointer; transition: all 0.2s;
+  }
+  .save-note-btn:active { transform: scale(0.98); background: var(--gold-dim); border-color: var(--gold); color: var(--gold); }
+
+  .action-btns { display: flex; gap: 8px; margin-top: 16px; }
+  .action-btn {
+    flex: 1; height: 46px; border-radius: var(--radius-sm);
+    font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: all 0.2s; border: none;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .action-btn:active { transform: scale(0.97); }
+  .action-call { background: var(--green); color: #000; }
+  .action-nav { background: var(--surface2); color: var(--text); border: 1px solid var(--border2); }
+
+  /* ── LOADING OVERLAY ──────────────────────────────── */
+  #loading {
+    position: fixed; inset: 0; z-index: 300; background: var(--bg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+  }
+  .loading-logo { font-size: 36px; font-weight: 800; }
+  .loading-logo span { color: var(--gold); }
+  .loading-sub { font-size: 13px; color: var(--text3); }
+  .loading-bar { width: 120px; height: 2px; background: var(--surface2); border-radius: 1px; overflow: hidden; }
+  .loading-bar-fill { height: 100%; background: var(--gold); border-radius: 1px; animation: load 1.8s ease-in-out infinite; }
+  @keyframes load { 0%{width:0;margin-left:0} 50%{width:100%;margin-left:0} 100%{width:0;margin-left:100%} }
+
+  /* ── SETUP SCREEN ─────────────────────────────────── */
+  #setup-screen {
+    position: fixed; inset: 0; z-index: 400; background: var(--bg);
+    overflow-y: auto; padding: 40px 24px;
+    padding-top: calc(40px + env(safe-area-inset-top, 0px));
+  }
+  .setup-logo { font-size: 32px; font-weight: 800; margin-bottom: 8px; }
+  .setup-logo span { color: var(--gold); }
+  .setup-sub { font-size: 14px; color: var(--text2); line-height: 1.6; margin-bottom: 32px; }
+  .setup-section { margin-bottom: 24px; }
+  .setup-label { font-size: 11px; font-weight: 700; letter-spacing: 0.8px; text-transform: uppercase; color: var(--text3); margin-bottom: 8px; }
+  .setup-input {
+    width: 100%; height: 48px; background: var(--surface2);
+    border: 1px solid var(--border2); border-radius: var(--radius-sm);
+    color: var(--text); font-family: 'DM Mono', monospace; font-size: 13px;
+    padding: 0 16px; outline: none; transition: border-color 0.2s;
+  }
+  .setup-input:focus { border-color: var(--gold); }
+  .setup-hint { font-size: 11px; color: var(--text3); margin-top: 6px; line-height: 1.5; }
+  .setup-btn {
+    width: 100%; height: 54px; background: var(--gold); color: #000;
+    border: none; border-radius: var(--radius-sm); font-family: 'Syne', sans-serif;
+    font-size: 16px; font-weight: 800; cursor: pointer; transition: all 0.2s;
+    margin-top: 8px;
+  }
+  .setup-btn:active { transform: scale(0.98); opacity: 0.9; }
+  .setup-divider { display: flex; align-items: center; gap: 12px; margin: 20px 0; }
+  .setup-divider-line { flex: 1; height: 1px; background: var(--border); }
+  .setup-divider span { font-size: 11px; color: var(--text3); }
+  .setup-note { background: var(--surface2); border-radius: var(--radius-sm); padding: 14px; border-left: 2px solid var(--gold); }
+  .setup-note p { font-size: 12px; color: var(--text2); line-height: 1.7; }
+
+  /* ── TOAST ────────────────────────────────────────── */
+  #toast {
+    position: fixed; bottom: calc(120px + var(--safe-bottom)); left: 50%; transform: translateX(-50%) translateY(20px);
+    background: var(--surface3); border: 1px solid var(--border2);
+    border-radius: 24px; padding: 10px 20px; font-size: 13px; font-weight: 600;
+    z-index: 500; opacity: 0; transition: all 0.3s; pointer-events: none; white-space: nowrap;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* ── RESULTS COUNT ────────────────────────────────── */
+  #results-bar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 95;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none;
+  }
+  .results-pill {
+    margin-top: 0; background: var(--surface); border: 1px solid var(--border2);
+    border-radius: 0 0 12px 12px; padding: 4px 16px;
+    font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text3);
+  }
+  .results-pill span { color: var(--gold); font-weight: 700; }
+
+  /* ── EMPTY STATE ──────────────────────────────────── */
+  .empty-card {
+    flex-shrink: 0; width: 240px; background: rgba(19,19,26,0.96);
+    border: 1px dashed var(--border2); border-radius: var(--radius);
+    padding: 20px; text-align: center; color: var(--text3); font-size: 13px; line-height: 1.6;
+  }
+  .empty-icon { font-size: 28px; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<!-- SETUP SCREEN -->
+<div id="setup-screen">
+  <div class="setup-logo">Vend<span>Scout</span></div>
+  <p class="setup-sub">Your AI-powered vending location intelligence tool. Enter your API keys to get started — these are stored only on your device.</p>
+
+  <div class="setup-section">
+    <div class="setup-label">Google Places API Key</div>
+    <input class="setup-input" id="gkey" type="password" placeholder="AIza...">
+    <p class="setup-hint">Get yours free at console.cloud.google.com → Enable "Places API (New)" → Create credentials → API Key. Google gives you $200 free credit/month.</p>
+  </div>
+
+  <div class="setup-section">
+    <div class="setup-label">Anthropic API Key</div>
+    <input class="setup-input" id="akey" type="password" placeholder="sk-ant-...">
+    <p class="setup-hint">Get yours at console.anthropic.com → API Keys → Create Key. Typical usage for this app: $3–8/month.</p>
+  </div>
+
+  <div class="setup-divider"><div class="setup-divider-line"></div><span>or</span><div class="setup-divider-line"></div></div>
+
+  <div class="setup-note">
+    <p>📌 <strong style="color:var(--text)">Demo mode:</strong> Leave keys blank to explore the app with your pre-loaded Fremont locations. Real-time search and AI scoring require API keys.</p>
+  </div>
+
+  <button class="setup-btn" style="margin-top:24px" onclick="initApp()">Launch VendScout →</button>
+</div>
+
+<!-- LOADING -->
+<div id="loading" style="display:none">
+  <div class="loading-logo">Vend<span>Scout</span></div>
+  <div class="loading-sub">Loading your locations...</div>
+  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+</div>
+
+<!-- MAP -->
+<div id="map-placeholder">
+  <div class="map-grid"></div>
+</div>
+<div id="map"></div>
+
+<!-- TOP BAR -->
+<div id="topbar" style="display:none">
+  <div class="topbar-row1">
+    <div class="logo">Vend<span>Scout</span></div>
+    <div class="locate-btn" onclick="locateMe()" title="Find my location">📍</div>
+  </div>
+  <div class="search-row">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input id="search-input" type="search" placeholder="Search area (e.g. Hayward CA)..." autocomplete="off">
+    </div>
+    <button class="search-btn" onclick="doSearch()">Search</button>
+  </div>
+  <div class="filter-row">
+    <div class="filter-chip" id="chip-gold" onclick="toggleFilter('gold')">⭐ Gold Only</div>
+    <div class="filter-chip" id="chip-mm" onclick="toggleFilter('mm')">🟢 Mini-Market</div>
+    <div class="filter-chip" id="chip-vm" onclick="toggleFilter('vm')">🔵 Standard VM</div>
+    <div class="filter-chip" id="chip-visited" onclick="toggleFilter('visited')">✅ Visited</div>
+    <div class="filter-chip" id="chip-unvisited" onclick="toggleFilter('unvisited')">⭕ Not Yet Visited</div>
+  </div>
+</div>
+
+<!-- RESULTS BAR -->
+<div id="results-bar" style="display:none">
+  <div class="results-pill" id="results-text">Loading...</div>
+</div>
+
+<!-- CARDS PANEL -->
+<div id="cards-panel" style="display:none">
+  <div class="cards-scroll" id="cards-container"></div>
+</div>
+
+<!-- DETAIL PANEL -->
+<div id="detail-panel">
+  <div class="detail-sheet" id="detail-sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-body" style="position:relative">
+      <div class="detail-close" onclick="closeDetail()">✕</div>
+      <div class="detail-header">
+        <div class="detail-name" id="d-name"></div>
+        <div class="detail-addr" id="d-addr"></div>
+      </div>
+
+      <div class="scores-grid">
+        <div class="score-card">
+          <div class="score-card-label mm">Mini-Market</div>
+          <div class="score-num mm" id="d-mm-score">—</div>
+          <div class="score-grade" id="d-mm-grade"></div>
+        </div>
+        <div class="score-card">
+          <div class="score-card-label vm">Standard VM</div>
+          <div class="score-num vm" id="d-vm-score">—</div>
+          <div class="score-grade" id="d-vm-grade"></div>
+        </div>
+      </div>
+
+      <div class="section-label">Contact Info</div>
+      <div class="contact-box" id="d-contact"></div>
+
+      <div class="section-label" style="margin-top:16px">Opening Pitch</div>
+      <div class="pitch-box">
+        <div id="d-pitch" class="pitch-text">
+          <div class="pitch-loading"><div class="pulse"></div> Generating tailored pitch...</div>
+        </div>
+      </div>
+
+      <div class="section-label">Field Status</div>
+      <div class="status-btns">
+        <button class="status-btn" id="btn-visited" onclick="setStatus('visited')">👁 Visited</button>
+        <button class="status-btn" id="btn-contacted" onclick="setStatus('contacted')">📞 Called</button>
+        <button class="status-btn" id="btn-placed" onclick="setStatus('placed')">✅ Placed</button>
+        <button class="status-btn" id="btn-pass" onclick="setStatus('pass')">✗ Pass</button>
+      </div>
+
+      <div class="section-label">Field Notes</div>
+      <textarea class="notes-area" id="d-notes" placeholder="e.g. Spoke to Mark in Facilities — interested, wants proposal by Friday. Break room on 2nd floor, badge access confirmed..."></textarea>
+      <button class="save-note-btn" onclick="saveNotes()">Save Notes</button>
+
+      <div class="action-btns">
+        <button class="action-btn action-call" id="d-call-btn" onclick="callLocation()">📞 Call</button>
+        <button class="action-btn action-nav" onclick="navigateToLocation()">🗺 Navigate</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ── CONFIGURATION ──────────────────────────────────────────────────────────
+let GOOGLE_KEY = '';
+let ANTHROPIC_KEY = '';
+let currentFilter = null;
+let allLocations = [];
+let currentDetailId = null;
+let userLat = 37.5485, userLng = -121.9886; // default Fremont
+let map = null;
+let markers = {};
+
+// ── SCORING ENGINE ─────────────────────────────────────────────────────────
+const LOCATION_TYPES = {
+  manufacturer: { mm: [4.5, 4.5, 4.0, 3.5, 3.5, 4.0], vm: [4.5, 4.0, 3.5, 4.0, 4.0, 3.5] },
+  hospital: { mm: [5.0, 4.5, 4.5, 3.5, 4.5, 3.0], vm: [3.5, 4.0, 4.5, 3.0, 4.5, 3.0] },
+  storage: { mm: [4.0, 4.0, 3.5, 3.5, 3.5, 3.5], vm: [4.5, 3.5, 3.5, 4.0, 3.5, 3.5] },
+  gym: { mm: [4.0, 3.5, 4.5, 3.0, 3.0, 3.5], vm: [3.5, 3.5, 4.0, 3.5, 3.5, 3.5] },
+  university: { mm: [2.5, 3.0, 3.5, 3.0, 2.5, 3.5], vm: [4.5, 4.0, 3.5, 4.5, 3.5, 3.5] },
+  medical_clinic: { mm: [3.0, 3.0, 3.5, 3.0, 3.5, 3.0], vm: [4.0, 4.0, 4.0, 3.5, 3.5, 3.0] },
+  corporate_office: { mm: [4.0, 4.0, 4.0, 3.5, 3.5, 3.5], vm: [4.0, 3.5, 3.5, 3.5, 3.5, 3.5] },
+  hotel: { mm: [2.5, 3.0, 3.0, 2.5, 3.0, 3.5], vm: [3.5, 3.5, 3.5, 3.5, 3.0, 3.5] },
+  apartment_complex: { mm: [3.0, 3.5, 3.0, 3.0, 2.5, 3.0], vm: [2.5, 2.5, 3.0, 3.0, 2.5, 3.0] },
+  default: { mm: [3.0, 3.0, 3.0, 3.0, 3.0, 3.0], vm: [3.0, 3.0, 3.0, 3.0, 3.0, 3.0] }
+};
+const MM_WEIGHTS = [0.25, 0.22, 0.20, 0.15, 0.12, 0.06];
+const VM_WEIGHTS = [0.30, 0.20, 0.18, 0.15, 0.12, 0.05];
+
+function getTypeKey(types) {
+  if (!types) return 'default';
+  const t = types.join(',');
+  if (t.includes('manufacturer') || t.includes('industrial')) return 'manufacturer';
+  if (t.includes('hospital') || t.includes('general_hospital')) return 'hospital';
+  if (t.includes('medical_clinic') || t.includes('doctor')) return 'medical_clinic';
+  if (t.includes('storage') || t.includes('warehouse')) return 'storage';
+  if (t.includes('gym') || t.includes('fitness')) return 'gym';
+  if (t.includes('university') || t.includes('school')) return 'university';
+  if (t.includes('corporate_office') || t.includes('office')) return 'corporate_office';
+  if (t.includes('hotel') || t.includes('lodging')) return 'hotel';
+  if (t.includes('apartment')) return 'apartment_complex';
+  return 'default';
+}
+
+function scoreLocation(loc) {
+  const key = getTypeKey(loc.types);
+  const base = LOCATION_TYPES[key] || LOCATION_TYPES.default;
+  const reviews = loc.user_ratings_total || loc.rating_count || 0;
+  const rating = loc.rating || 3.5;
+
+  // volume multiplier based on review count
+  const volFactor = reviews > 500 ? 1.15 : reviews > 200 ? 1.08 : reviews > 50 ? 1.02 : 0.95;
+
+  let mmRaw = base.mm.reduce((s, v, i) => s + v * MM_WEIGHTS[i], 0) * volFactor;
+  let vmRaw = base.vm.reduce((s, v, i) => s + v * VM_WEIGHTS[i], 0) * volFactor;
+
+  // rating adjustment
+  if (rating > 4.2) { mmRaw += 0.1; vmRaw += 0.1; }
+  if (rating < 3.0) { mmRaw -= 0.2; vmRaw -= 0.1; }
+
+  const mmScore = Math.min(5.0, Math.max(1.0, +mmRaw.toFixed(1)));
+  const vmScore = Math.min(5.0, Math.max(1.0, +vmRaw.toFixed(1)));
+  return { mm: mmScore, vm: vmScore };
+}
+
+function classifyLocation(scores) {
+  const isGold = scores.mm >= 4.0 && scores.vm >= 4.0;
+  const mmStrong = scores.mm >= 4.0;
+  const mmMod = scores.mm >= 2.5 && scores.mm < 4.0;
+  const vmStrong = scores.vm >= 4.0;
+  const vmMod = scores.vm >= 2.5 && scores.vm < 4.0;
+  const mmPass = scores.mm < 2.5;
+  const vmPass = scores.vm < 2.5;
+  if (mmPass && vmPass) return 'pass';
+  if (isGold) return 'gold';
+  if (mmStrong && !vmStrong) return 'mm-strong';
+  if (vmStrong && !mmStrong) return 'vm-strong';
+  if (mmMod && vmMod) return 'mod';
+  if (mmMod) return 'mm-mod';
+  if (vmMod) return 'vm-mod';
+  return 'mod';
+}
+
+function gradeLabel(score) {
+  if (score >= 4.5) return 'Elite ✦';
+  if (score >= 4.0) return 'Strong';
+  if (score >= 3.0) return 'Moderate';
+  if (score >= 2.5) return 'Marginal';
+  return 'Pass';
+}
+
+function getContactRole(types) {
+  const key = getTypeKey(types);
+  const roles = {
+    manufacturer: 'HR Director or Facilities Manager',
+    hospital: 'Facilities or Food Services Director',
+    storage: 'Operations or Warehouse Manager',
+    gym: 'General Manager or Owner',
+    university: 'Campus Facilities or Student Services',
+    medical_clinic: 'Center Director or Office Manager',
+    corporate_office: 'Facilities or Office Manager',
+    hotel: 'General Manager or Front Desk Supervisor',
+    apartment_complex: 'Property Manager',
+    default: 'Facilities or Operations Manager'
+  };
+  return roles[key] || roles.default;
+}
+
+// ── SEED DATA (your pre-researched Fremont locations) ─────────────────────
+const SEED_LOCATIONS = [
+  { id:'seed-1', name:'Tesla Motors / Fremont Factory', address:'45500 Fremont Blvd, Fremont, CA', lat:37.4934, lng:-121.9451, types:['manufacturer','corporate_office'], rating:4.0, user_ratings_total:50, phone:'+1 570-995-1754', demand_signal:'🔴 No competitor vending confirmed' },
+  { id:'seed-2', name:'Home Depot Distribution Center', address:'40745 Encyclopedia Cir, Fremont, CA', lat:37.5140, lng:-121.9858, types:['storage','supplier'], rating:2.1, user_ratings_total:19, phone:'+1 510-353-9370', demand_signal:'🔴 Review explicitly says NO VENDING MACHINES' },
+  { id:'seed-3', name:'Amazon Sort Center OAK5', address:'38811 Cherry St, Newark, CA', lat:37.5205, lng:-122.0140, types:['storage'], rating:3.7, user_ratings_total:408, phone:null, demand_signal:'🔴 24/7 captive workforce, no food amenities in reviews' },
+  { id:'seed-4', name:'Sprouts Distribution Center', address:'33400 Dowe Ave, Union City, CA', lat:37.5950, lng:-122.0424, types:['storage'], rating:2.9, user_ratings_total:32, phone:'+1 510-404-1331', demand_signal:'🔴 Multiple reviews cite NO amenities for workers' },
+  { id:'seed-5', name:'Washington Hospital', address:'2000 Mowry Ave, Fremont, CA', lat:37.5573, lng:-121.9792, types:['general_hospital','hospital'], rating:2.6, user_ratings_total:372, phone:'+1 510-797-1111', demand_signal:'🟡 Cafeteria closes 7pm — night shift underserved' },
+  { id:'seed-6', name:'Sutter Urgent Care Fremont', address:'3200 Kearney St, Fremont, CA', lat:37.5483, lng:-121.9744, types:['medical_clinic'], rating:3.9, user_ratings_total:864, phone:'+1 510-498-2940', demand_signal:'🟡 No vending mentioned in 864 reviews' },
+  { id:'seed-7', name:'Concentra Urgent Care', address:'3161 Walnut Ave, Fremont, CA', lat:37.5515, lng:-121.9805, types:['medical_clinic'], rating:3.8, user_ratings_total:1189, phone:'+1 510-796-1000', demand_signal:'🔴 Open until midnight, no vending in any review' },
+  { id:'seed-8', name:'Fremont Business Park', address:'42840 Christy St, Fremont, CA', lat:37.5088, lng:-121.9758, types:['corporate_office','business_center'], rating:4.5, user_ratings_total:10, phone:'+1 408-520-2437', demand_signal:'🟡 Named contact: Lee Jatta (Property Manager)' },
+  { id:'seed-9', name:'Toyota Tsusho', address:'41490 Boyce Rd, Fremont, CA', lat:37.5079, lng:-121.9853, types:['manufacturer'], rating:4.5, user_ratings_total:2, phone:'+1 510-657-7131', demand_signal:'🟡 Toyota-affiliated manufacturing' },
+  { id:'seed-10', name:'24 Hour Fitness Auto Mall', address:'4500 Auto Mall Pkwy, Fremont, CA', lat:37.5093, lng:-121.9583, types:['gym','fitness_center'], rating:4.0, user_ratings_total:888, phone:'+1 510-226-6900', demand_signal:'🟡 True 24/7 operation, 888 reviews' },
+  { id:'seed-11', name:'Elite Performance Gym', address:'37272 Maple St, Fremont, CA', lat:37.5580, lng:-122.0088, types:['gym'], rating:4.8, user_ratings_total:256, phone:'+1 510-998-0863', demand_signal:'🟡 Premium boutique, health-conscious clientele' },
+  { id:'seed-12', name:'LFBA Studios Lagree', address:'39370 Civic Center Dr, Fremont, CA', lat:37.5535, lng:-121.9742, types:['gym','fitness_center'], rating:5.0, user_ratings_total:265, phone:null, demand_signal:'🟡 5-star premium wellness, ideal demographic' },
+  { id:'seed-13', name:'Ohlone College Main', address:'43600 Mission Blvd, Fremont, CA', lat:37.5293, lng:-121.9146, types:['university'], rating:4.1, user_ratings_total:196, phone:'+1 510-659-6000', demand_signal:'🟡 Large community college' },
+  { id:'seed-14', name:'Ohlone College Newark', address:'39399 Cherry St, Newark, CA', lat:37.5174, lng:-122.0044, types:['university'], rating:4.7, user_ratings_total:52, phone:'+1 510-742-2300', demand_signal:'🟡 Modern STEM & healthcare campus' },
+  { id:'seed-15', name:'Chabot College', address:'25555 Hesperian Blvd, Hayward, CA', lat:37.6427, lng:-122.1062, types:['university'], rating:4.3, user_ratings_total:227, phone:'+1 510-723-6600', demand_signal:'🟡 Large Hayward campus' },
+  { id:'seed-16', name:'Creekside Village Apartments', address:'2999 Sequoia Terrace, Fremont, CA', lat:37.5649, lng:-122.0035, types:['apartment_complex'], rating:4.6, user_ratings_total:364, phone:'+1 844-795-9756', demand_signal:'🟡 Gated, high-rated community' },
+  { id:'seed-17', name:'Glenmoor Green Apartments', address:'38850 Farwell Dr, Fremont, CA', lat:37.5348, lng:-122.0018, types:['apartment_complex'], rating:4.7, user_ratings_total:98, phone:'+1 510-574-8374', demand_signal:'🟡 Long-term residents, gated' },
+  { id:'seed-18', name:'Unitek College Fremont', address:'4670 Auto Mall Pkwy, Fremont, CA', lat:37.5090, lng:-121.9617, types:['university','health'], rating:4.0, user_ratings_total:123, phone:'+1 888-775-1514', demand_signal:'🟡 Healthcare-focused college, long programs' },
+  { id:'seed-19', name:'Aura Wellness Studio', address:'160 Fremont Hub Courtyard, Fremont, CA', lat:37.5465, lng:-121.9878, types:['gym'], rating:5.0, user_ratings_total:8, phone:'+1 510-557-4554', demand_signal:'🟡 5-star premium studio, health demographic' },
+  { id:'seed-20', name:'Best Western Plus Garden Court Inn', address:'5400 Mowry Ave, Fremont, CA', lat:37.5324, lng:-121.9999, types:['hotel'], rating:4.2, user_ratings_total:950, phone:'+1 510-792-4300', demand_signal:'🟡 950 reviews, consistent occupancy' }
+];
+
+// ── APP STATE & STORAGE ────────────────────────────────────────────────────
+function loadUserData() {
+  try { return JSON.parse(localStorage.getItem('vendscout_data') || '{}'); } catch { return {}; }
+}
+function saveUserData(data) {
+  localStorage.setItem('vendscout_data', JSON.stringify(data));
+}
+function getUserDatum(locId) {
+  const data = loadUserData();
+  return data[locId] || { status: null, notes: '' };
+}
+function setUserDatum(locId, updates) {
+  const data = loadUserData();
+  data[locId] = { ...(data[locId] || { status: null, notes: '' }), ...updates };
+  saveUserData(data);
+}
+
+// ── SCORING & CLASSIFICATION ───────────────────────────────────────────────
+function processLocations(rawLocs) {
+  return rawLocs.map(loc => {
+    const scores = scoreLocation(loc);
+    const classification = classifyLocation(scores);
+    const userData = getUserDatum(loc.id);
+    return { ...loc, scores, classification, ...userData };
+  }).filter(l => l.classification !== 'pass');
+}
+
+// ── FILTERS ────────────────────────────────────────────────────────────────
+function toggleFilter(f) {
+  currentFilter = currentFilter === f ? null : f;
+  updateFilterChips();
+  renderCards();
+  if (map) updateMapMarkers();
+}
+function updateFilterChips() {
+  ['gold','mm','vm','visited','unvisited'].forEach(f => {
+    const el = document.getElementById('chip-'+f);
+    if (!el) return;
+    el.className = 'filter-chip' + (currentFilter === f ? ' active-'+f : '');
+  });
+}
+function getFilteredLocations() {
+  return allLocations.filter(loc => {
+    if (!currentFilter) return true;
+    if (currentFilter === 'gold') return loc.classification === 'gold';
+    if (currentFilter === 'mm') return loc.scores.mm >= 4.0;
+    if (currentFilter === 'vm') return loc.scores.vm >= 4.0;
+    if (currentFilter === 'visited') return loc.status === 'visited' || loc.status === 'contacted' || loc.status === 'placed';
+    if (currentFilter === 'unvisited') return !loc.status;
+    return true;
+  });
+}
+
+// ── CARD RENDERING ─────────────────────────────────────────────────────────
+function badgeForClass(c) {
+  const map = {
+    gold: ['⭐ Gold — Both Strong', 'badge-gold'],
+    'mm-strong': ['🟢 Mini-Market Strong', 'badge-mm'],
+    'vm-strong': ['🔵 Standard VM Strong', 'badge-vm'],
+    mod: ['🟡 Moderate', 'badge-mod'],
+    'mm-mod': ['🟢 MM Moderate', 'badge-mod'],
+    'vm-mod': ['🔵 VM Moderate', 'badge-mod'],
+  };
+  return map[c] || ['—', 'badge-mod'];
+}
+function statusColor(status) {
+  const map = { visited:'#2dce89', contacted:'#4d9fff', placed:'#f5c842', pass:'#ff6b6b' };
+  return map[status] || 'transparent';
+}
+function statusLabel(status) {
+  const map = { visited:'Visited', contacted:'Called', placed:'Machine Placed', pass:'Passed' };
+  return map[status] || '';
+}
+
+function renderCards() {
+  const container = document.getElementById('cards-container');
+  const filtered = getFilteredLocations();
+  const total = allLocations.length;
+
+  // update results bar
+  const filterLabel = currentFilter ? ` (${currentFilter} filter)` : '';
+  document.getElementById('results-text').innerHTML = `Showing <span>${filtered.length}</span> of <span>${total}</span> locations${filterLabel}`;
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div class="empty-card"><div class="empty-icon">🔍</div>No locations match this filter. Try a different view or search a new area.</div>';
+    return;
+  }
+
+  // sort: gold first, then by mm score
+  filtered.sort((a,b) => {
+    if (a.classification==='gold' && b.classification!=='gold') return -1;
+    if (b.classification==='gold' && a.classification!=='gold') return 1;
+    return b.scores.mm - a.scores.mm;
+  });
+
+  container.innerHTML = filtered.map(loc => {
+    const [badgeText, badgeClass] = badgeForClass(loc.classification);
+    const userData = getUserDatum(loc.id);
+    const statusHtml = userData.status ? `<div class="card-status"><span class="status-dot" style="background:${statusColor(userData.status)}"></span>${statusLabel(userData.status)}</div>` : '';
+    const demandHtml = loc.demand_signal ? `<div style="font-size:10px;color:var(--text3);margin-top:6px;line-height:1.4">${loc.demand_signal}</div>` : '';
+    return `
+    <div class="loc-card ${loc.classification === 'gold' ? 'gold' : loc.scores.mm >= 4 ? 'green' : 'blue'}" onclick="openDetail('${loc.id}')">
+      <div class="card-top">
+        <div class="card-name">${loc.name}</div>
+        <div class="card-badge ${badgeClass}">${badgeText}</div>
+      </div>
+      <div class="card-addr">${loc.address}</div>
+      <div class="score-row">
+        <div class="score-pill mm">🟢 MM ${loc.scores.mm.toFixed(1)}</div>
+        <div class="score-pill vm">🔵 VM ${loc.scores.vm.toFixed(1)}</div>
+      </div>
+      ${demandHtml}
+      ${statusHtml}
+    </div>`;
+  }).join('');
+}
+
+// ── DETAIL PANEL ───────────────────────────────────────────────────────────
+async function openDetail(id) {
+  const loc = allLocations.find(l => l.id === id);
+  if (!loc) return;
+  currentDetailId = id;
+  const userData = getUserDatum(id);
+
+  document.getElementById('d-name').textContent = loc.name;
+  document.getElementById('d-addr').textContent = loc.address;
+  document.getElementById('d-mm-score').textContent = loc.scores.mm.toFixed(1);
+  document.getElementById('d-vm-score').textContent = loc.scores.vm.toFixed(1);
+  document.getElementById('d-mm-grade').textContent = gradeLabel(loc.scores.mm);
+  document.getElementById('d-vm-grade').textContent = gradeLabel(loc.scores.vm);
+  document.getElementById('d-notes').value = userData.notes || '';
+
+  // contact box
+  const contactRole = getContactRole(loc.types);
+  const phoneHtml = loc.phone
+    ? `<div class="contact-row"><span class="contact-key">Phone</span><span class="contact-val"><a href="tel:${loc.phone}">${loc.phone}</a></span></div>`
+    : `<div class="contact-row"><span class="contact-key">Phone</span><span class="contact-val" style="color:var(--text3)">Look up on Google</span></div>`;
+  document.getElementById('d-contact').innerHTML = `
+    <div class="contact-row"><span class="contact-key">Ask for</span><span class="contact-val" style="font-family:'Syne'">${contactRole}</span></div>
+    ${phoneHtml}
+    <div class="contact-row"><span class="contact-key">Type</span><span class="contact-val" style="font-family:'Syne'">${getTypeKey(loc.types).replace(/_/g,' ')}</span></div>
+  `;
+
+  // call button
+  if (loc.phone) {
+    document.getElementById('d-call-btn').style.opacity = '1';
+    document.getElementById('d-call-btn').disabled = false;
+  } else {
+    document.getElementById('d-call-btn').style.opacity = '0.4';
+    document.getElementById('d-call-btn').disabled = true;
+  }
+
+  // status buttons
+  ['visited','contacted','placed','pass'].forEach(s => {
+    const btn = document.getElementById('btn-'+s);
+    btn.className = 'status-btn' + (userData.status === s ? ' active-'+s : '');
+  });
+
+  // show panel
+  document.getElementById('detail-panel').classList.add('open');
+
+  // generate pitch
+  generatePitch(loc);
+}
+
+function closeDetail() {
+  document.getElementById('detail-panel').classList.remove('open');
+  currentDetailId = null;
+}
+
+async function generatePitch(loc) {
+  const pitchEl = document.getElementById('d-pitch');
+  pitchEl.innerHTML = '<div class="pitch-loading"><div class="pulse"></div> Generating tailored pitch...</div>';
+
+  if (!ANTHROPIC_KEY) {
+    const pitches = {
+      manufacturer: `"Hi, I'm reaching out about adding a healthy food benefit for your team. I operate modern smart vending machines with fresh, healthy options — protein bars, fresh drinks, real food. There's no cost to you, and I handle everything from installation to restocking. Would you have 10 minutes this week to discuss?"`,
+      hospital: `"Hi, I noticed your cafeteria closes at 7pm. I work with medical facilities to provide 24/7 healthy food access for night shift staff through smart vending — staffed by local operators, not a national chain. No cost to the facility. Would your Facilities Director have time for a quick call?"`,
+      gym: `"Hi, I'm reaching out about adding a healthy snack and drink station for your members. I operate smart open-cooler machines with protein bars, electrolytes, and clean-ingredient snacks — exactly what your clients look for after a workout. No cost, I handle everything. Interested in a quick chat?"`,
+      default: `"Hi, I'm a local healthy vending operator and I'd love to explore placing a smart vending machine at your location — no cost to you, healthy products, and I handle all restocking and maintenance. Do you have 10 minutes to talk this week?"`
+    };
+    const key = getTypeKey(loc.types);
+    pitchEl.innerHTML = pitches[key] || pitches.default;
+    return;
+  }
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 200,
+        messages: [{
+          role: 'user',
+          content: `Write a short, natural, conversational cold call opening pitch (2-3 sentences max) for placing a healthy vending machine / smart mini-market at: ${loc.name}, type: ${getTypeKey(loc.types)}. The pitch should mention no cost to them, healthy options, and local operator. Be specific to the location type. No quotation marks needed, just the pitch text.`
+        }]
+      })
+    });
+    const data = await response.json();
+    const text = data.content?.[0]?.text || 'Generate pitch failed — check your API key.';
+    pitchEl.innerHTML = `"${text}"`;
+  } catch (e) {
+    pitchEl.innerHTML = 'Could not generate pitch. Check your Anthropic API key in settings.';
+  }
+}
+
+function setStatus(status) {
+  if (!currentDetailId) return;
+  const userData = getUserDatum(currentDetailId);
+  const newStatus = userData.status === status ? null : status;
+  setUserDatum(currentDetailId, { status: newStatus });
+
+  // update buttons
+  ['visited','contacted','placed','pass'].forEach(s => {
+    document.getElementById('btn-'+s).className = 'status-btn' + (newStatus === s ? ' active-'+s : '');
+  });
+
+  // update in allLocations
+  const loc = allLocations.find(l => l.id === currentDetailId);
+  if (loc) loc.status = newStatus;
+
+  renderCards();
+  showToast(newStatus ? `Status: ${statusLabel(newStatus)}` : 'Status cleared');
+}
+
+function saveNotes() {
+  if (!currentDetailId) return;
+  const notes = document.getElementById('d-notes').value;
+  setUserDatum(currentDetailId, { notes });
+  showToast('Notes saved ✓');
+}
+
+function callLocation() {
+  const loc = allLocations.find(l => l.id === currentDetailId);
+  if (loc?.phone) window.location.href = `tel:${loc.phone}`;
+}
+
+function navigateToLocation() {
+  const loc = allLocations.find(l => l.id === currentDetailId);
+  if (!loc) return;
+  const url = `https://maps.apple.com/?daddr=${encodeURIComponent(loc.address)}`;
+  window.open(url, '_blank');
+}
+
+// ── GOOGLE PLACES SEARCH ───────────────────────────────────────────────────
+async function doSearch() {
+  const query = document.getElementById('search-input').value.trim();
+  if (!query && !GOOGLE_KEY) { showToast('Enter a location to search'); return; }
+  if (!GOOGLE_KEY) { showToast('Google API key needed for live search'); return; }
+
+  showToast('Searching...');
+
+  try {
+    // geocode the query to get lat/lng
+    const geoRes = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${GOOGLE_KEY}`);
+    const geoData = await geoRes.json();
+    if (geoData.results?.[0]) {
+      userLat = geoData.results[0].geometry.location.lat;
+      userLng = geoData.results[0].geometry.location.lng;
+    }
+    await searchNearby(userLat, userLng);
+  } catch (e) {
+    showToast('Search failed — check API key');
+  }
+}
+
+async function locateMe() {
+  if (!navigator.geolocation) { showToast('Location not available'); return; }
+  showToast('Finding your location...');
+  navigator.geolocation.getCurrentPosition(async pos => {
+    userLat = pos.coords.latitude;
+    userLng = pos.coords.longitude;
+    if (GOOGLE_KEY) await searchNearby(userLat, userLng);
+    else { renderCards(); showToast('Location updated'); }
+    if (map) map.setCenter({ lat: userLat, lng: userLng });
+  }, () => showToast('Location access denied'));
+}
+
+const PLACE_TYPES = ['factory','warehouse','hospital','gym','university','office building','manufacturing plant','medical clinic','apartment complex','distribution center'];
+
+async function searchNearby(lat, lng) {
+  if (!GOOGLE_KEY) return;
+  const radius = 8000;
+  const newLocs = [];
+
+  for (const type of PLACE_TYPES.slice(0, 5)) {
+    try {
+      // Use the text search endpoint
+      const res = await fetch(`https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(type)}&location=${lat},${lng}&radius=${radius}&key=${GOOGLE_KEY}`);
+      const data = await res.json();
+      if (data.results) {
+        data.results.slice(0, 4).forEach(p => {
+          if (!allLocations.find(l => l.id === p.place_id)) {
+            newLocs.push({
+              id: p.place_id,
+              name: p.name,
+              address: p.formatted_address,
+              lat: p.geometry.location.lat,
+              lng: p.geometry.location.lng,
+              types: p.types || [],
+              rating: p.rating || 3.5,
+              user_ratings_total: p.user_ratings_total || 0,
+              phone: null,
+              demand_signal: null
+            });
+          }
+        });
+      }
+    } catch {}
+  }
+
+  if (newLocs.length > 0) {
+    const processed = processLocations(newLocs);
+    allLocations = [...allLocations, ...processed];
+    renderCards();
+    if (map) updateMapMarkers();
+    showToast(`Found ${processed.length} new locations`);
+  } else {
+    showToast('No new locations found');
+  }
+}
+
+// ── GOOGLE MAPS ────────────────────────────────────────────────────────────
+function initMap() {
+  if (!GOOGLE_KEY || !window.google) return;
+  map = new window.google.maps.Map(document.getElementById('map'), {
+    center: { lat: userLat, lng: userLng },
+    zoom: 12,
+    styles: [
+      { elementType:'geometry', stylers:[{color:'#0a0a0f'}] },
+      { elementType:'labels.text.stroke', stylers:[{color:'#0a0a0f'}] },
+      { elementType:'labels.text.fill', stylers:[{color:'#5a5870'}] },
+      { featureType:'road', elementType:'geometry', stylers:[{color:'#1c1c27'}] },
+      { featureType:'road', elementType:'geometry.stroke', stylers:[{color:'#13131a'}] },
+      { featureType:'road.highway', elementType:'geometry', stylers:[{color:'#252535'}] },
+      { featureType:'water', elementType:'geometry', stylers:[{color:'#13131a'}] },
+      { featureType:'poi', stylers:[{visibility:'off'}] },
+      { featureType:'transit', stylers:[{visibility:'off'}] }
+    ],
+    disableDefaultUI: true,
+    gestureHandling: 'greedy'
+  });
+  updateMapMarkers();
+}
+
+function updateMapMarkers() {
+  if (!map) return;
+  const filtered = getFilteredLocations();
+  const filteredIds = new Set(filtered.map(l => l.id));
+
+  // hide markers not in filter
+  Object.keys(markers).forEach(id => {
+    if (markers[id]) markers[id].setVisible(filteredIds.has(id));
+  });
+
+  // add new markers
+  filtered.forEach(loc => {
+    if (markers[loc.id]) return;
+    const color = loc.classification === 'gold' ? '#f5c842' :
+                  loc.scores.mm >= 4.0 ? '#2dce89' :
+                  loc.scores.mm >= 2.5 ? '#9FE1CB' :
+                  loc.scores.vm >= 4.0 ? '#4d9fff' : '#85B7EB';
+    const marker = new window.google.maps.Marker({
+      position: { lat: loc.lat, lng: loc.lng },
+      map,
+      title: loc.name,
+      icon: {
+        path: window.google.maps.SymbolPath.CIRCLE,
+        fillColor: color,
+        fillOpacity: 1,
+        strokeColor: '#0a0a0f',
+        strokeWeight: 2,
+        scale: loc.classification === 'gold' ? 10 : 8
+      }
+    });
+    marker.addListener('click', () => openDetail(loc.id));
+    markers[loc.id] = marker;
+  });
+}
+
+// ── TOAST ──────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// ── APP INIT ───────────────────────────────────────────────────────────────
+function initApp() {
+  GOOGLE_KEY = document.getElementById('gkey').value.trim();
+  ANTHROPIC_KEY = document.getElementById('akey').value.trim();
+
+  // save keys
+  if (GOOGLE_KEY) localStorage.setItem('vs_gkey', GOOGLE_KEY);
+  if (ANTHROPIC_KEY) localStorage.setItem('vs_akey', ANTHROPIC_KEY);
+
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('loading').style.display = 'flex';
+
+  setTimeout(() => {
+    // process seed data
+    allLocations = processLocations(SEED_LOCATIONS);
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('topbar').style.display = 'block';
+    document.getElementById('cards-panel').style.display = 'block';
+    document.getElementById('results-bar').style.display = 'flex';
+
+    renderCards();
+
+    // load Google Maps if key provided
+    if (GOOGLE_KEY) {
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_KEY}&callback=initMap`;
+      script.async = true;
+      script.defer = true;
+      document.head.appendChild(script);
+      window.initMap = initMap;
+    }
+
+    // enter to search
+    document.getElementById('search-input').addEventListener('keydown', e => {
+      if (e.key === 'Enter') doSearch();
+    });
+
+    showToast(`${allLocations.length} locations loaded`);
+  }, 1200);
+}
+
+// ── RESTORE KEYS ON LOAD ───────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  const savedG = localStorage.getItem('vs_gkey');
+  const savedA = localStorage.getItem('vs_akey');
+  if (savedG) document.getElementById('gkey').value = savedG;
+  if (savedA) document.getElementById('akey').value = savedA;
+});
+
+// close detail on background tap
+document.getElementById('detail-panel').addEventListener('click', function(e) {
+  if (e.target === this) closeDetail();
+});
+</script>
+</body>
+</html>
