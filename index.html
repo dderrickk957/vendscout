@@ -346,20 +346,78 @@ async function doSearch(){
   }catch{showToast('Search failed')}
 }
 async function nearbySearch(lat,lng){
-  const q=`[out:json][timeout:25];(node["amenity"="hospital"](around:5000,${lat},${lng});node["building"="industrial"](around:5000,${lat},${lng});node["amenity"="gym"](around:5000,${lat},${lng});node["amenity"="college"](around:5000,${lat},${lng});node["amenity"="university"](around:5000,${lat},${lng});node["office"="company"](around:5000,${lat},${lng});node["building"="warehouse"](around:5000,${lat},${lng}););out body 30;`;
+  let added=0;
+
+  // Strategy 1: Nominatim keyword searches — broad, works like Google
+  const searches=[
+    {q:'warehouse',types:['storage']},
+    {q:'distribution center',types:['storage']},
+    {q:'manufacturing',types:['manufacturer']},
+    {q:'factory',types:['manufacturer']},
+    {q:'hospital',types:['general_hospital']},
+    {q:'urgent care',types:['medical_clinic']},
+    {q:'gym fitness',types:['gym']},
+    {q:'college university',types:['university']},
+    {q:'office park',types:['corporate_office']},
+    {q:'hotel',types:['hotel']},
+    {q:'apartment complex',types:['apartment_complex']}
+  ];
+
+  const seen=new Set(locs.map(l=>l.name.toLowerCase()));
+
+  for(const s of searches){
+    try{
+      const url=`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(s.q+' '+document.getElementById('sinput').value.trim())}&limit=6&addressdetails=1`;
+      const r=await fetch(url,{headers:{'Accept-Language':'en'}});
+      const data=await r.json();
+      data.forEach(el=>{
+        if(!el.lat||!el.lon||!el.display_name)return;
+        const name=el.display_name.split(',')[0].trim();
+        if(seen.has(name.toLowerCase()))return;
+        const id=`nom-${el.place_id}`;
+        if(locs.find(l=>l.id===id))return;
+        seen.add(name.toLowerCase());
+        const addr=el.address?[el.address.house_number,el.address.road,el.address.city||el.address.town||el.address.county].filter(Boolean).join(' '):el.display_name.split(',').slice(0,3).join(',');
+        const nl={id,name,address:addr,lat:parseFloat(el.lat),lng:parseFloat(el.lon),types:s.types,rating:3.5,user_ratings_total:0,phone:null,demand_signal:null};
+        const p=procLocs([nl]);if(p.length){locs.push(...p);added++}
+      });
+    }catch{}
+    await new Promise(res=>setTimeout(res,120)); // rate limit
+  }
+
+  // Strategy 2: Overpass broad search — any named business node/way nearby
   try{
+    const q=`[out:json][timeout:20];(
+      node["name"]["amenity"](around:6000,${lat},${lng});
+      node["name"]["office"](around:6000,${lat},${lng});
+      node["name"]["building"~"industrial|warehouse|office|hospital|gym"](around:6000,${lat},${lng});
+      way["name"]["building"~"industrial|warehouse|office|hospital"](around:6000,${lat},${lng});
+    );out center 40;`;
     const r=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(q)});
-    const d=await r.json();let added=0;
+    const d=await r.json();
     (d.elements||[]).forEach(el=>{
-      if(!el.lat||!el.lon||!el.tags?.name)return;
+      const elat=el.lat||el.center?.lat,elng=el.lon||el.center?.lon;
+      if(!elat||!elng||!el.tags?.name)return;
+      const name=el.tags.name;
+      if(seen.has(name.toLowerCase()))return;
       const id=`osm-${el.id}`;if(locs.find(l=>l.id===id))return;
-      const t=el.tags,types=t.amenity==='hospital'?['hospital']:t.amenity==='gym'?['gym']:t.amenity==='college'||t.amenity==='university'?['university']:t.office==='company'?['corporate_office']:['storage'];
-      const nl={id,name:t.name,address:t['addr:street']?`${t['addr:housenumber']||''} ${t['addr:street']}, ${t['addr:city']||''}`.trim():`Near searched area`,lat:el.lat,lng:el.lon,types,rating:3.5,user_ratings_total:0,phone:t.phone||null,demand_signal:null};
+      seen.add(name.toLowerCase());
+      const t=el.tags;
+      let types=['default'];
+      if(t.amenity==='hospital'||t.amenity==='clinic')types=['hospital'];
+      else if(t.amenity==='gym'||t.leisure==='fitness_centre')types=['gym'];
+      else if(t.amenity==='college'||t.amenity==='university')types=['university'];
+      else if(t.office)types=['corporate_office'];
+      else if(t.building==='warehouse'||t.building==='industrial')types=['storage'];
+      else if(t.building==='hospital')types=['hospital'];
+      const addr=t['addr:street']?`${t['addr:housenumber']||''} ${t['addr:street']}, ${t['addr:city']||''}`.trim():'';
+      const nl={id,name,address:addr||'Address not listed',lat:elat,lng:elng,types,rating:3.5,user_ratings_total:0,phone:t.phone||null,demand_signal:null};
       const p=procLocs([nl]);if(p.length){locs.push(...p);added++}
     });
-    renderCards();updateMarkers();
-    showToast(added>0?`Found ${added} new locations`:'No new locations nearby');
-  }catch{showToast('Search complete')}
+  }catch{}
+
+  renderCards();updateMarkers();
+  showToast(added>0?`Found ${added} new locations`:'No new locations found — try a broader search term');
 }
 async function locateMe(){
   if(!navigator.geolocation){showToast('Location not available');return}
